@@ -309,20 +309,530 @@ td.mdesc{max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellips
 </style>
 <style>
 [data-admin-only][hidden]{display:none!important}
-#authGate{position:fixed;inset:0;z-index:99999;background:#0e1d31;display:grid;place-items:center;padding:20px;color:#172b47;font-family:Arial,sans-serif}
-#authGate[hidden]{display:none}#authCard{background:white;max-width:430px;width:100%;padding:36px;border-radius:14px;box-shadow:0 20px 70px #0005}
-#authCard input{width:100%;box-sizing:border-box;padding:12px;margin:6px 0 16px;border:1px solid #b6c2d1;border-radius:6px;font-size:16px}
-#authCard button{padding:12px 20px;background:#245b91;color:white;border:0;border-radius:6px;cursor:pointer}
-#authMessage{white-space:pre-wrap;line-height:1.5;margin-top:18px;color:#98410b}#cloudBar{position:relative;margin-bottom:16px;background:#16324f;color:white;padding:9px 12px;border-radius:9px;font:12px Arial;box-shadow:0 4px 18px #0003;max-width:90vw}#cloudBar[hidden]{display:none}#cloudBar button{margin-left:10px;padding:5px 8px;cursor:pointer}body.locked .app{visibility:hidden}
+#cloudBar{position:relative;margin-bottom:16px;background:#16324f;color:white;padding:9px 12px;border-radius:9px;font:12px Arial;box-shadow:0 4px 18px #0003;max-width:90vw}#cloudBar[hidden]{display:none}#cloudBar button{margin-left:10px;padding:5px 8px;cursor:pointer}body.locked .app{visibility:hidden}
 </style>
-<script src="./config.js"></script>
+<script>
+// Public browser configuration. Data access is enforced in Supabase.
+window.PSM_CONFIG = {
+  supabaseUrl: "https://rlrmfzyjhwoamrdbbiyl.supabase.co",
+  supabaseKey: "sb_publishable__HHk1p0KlJxyl8yMHObzYw_50cz1M4G"
+};
+
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
+<style>
+/* Login design adapted from the supplied Colorlib Neumorphism template. */
+#authGate * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}#authGate {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #e0e5ec;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    line-height: 1.6;
+}#authGate .login-container {
+    width: 100%;
+    max-width: 420px;
+}#authGate .login-card {
+    background: #e0e5ec;
+    border-radius: 30px;
+    padding: 50px 40px;
+    box-shadow: 
+        20px 20px 60px #bec3cf,
+        -20px -20px 60px #ffffff;
+    position: relative;
+    transition: all 0.3s ease;
+}#authGate .login-card:hover {
+    transform: translateY(-5px);
+}#authGate .login-header {
+    text-align: center;
+    margin-bottom: 40px;
+}#authGate .neu-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 24px;
+    background: #e0e5ec;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 
+        8px 8px 20px #bec3cf,
+        -8px -8px 20px #ffffff,
+        inset 0 0 0 #bec3cf,
+        inset 0 0 0 #ffffff;
+    transition: all 0.3s ease;
+}#authGate .neu-icon:hover {
+    box-shadow: 
+        4px 4px 10px #bec3cf,
+        -4px -4px 10px #ffffff,
+        inset 4px 4px 10px #bec3cf,
+        inset -4px -4px 10px #ffffff;
+}#authGate .icon-inner {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c7293;
+}#authGate .icon-inner svg {
+    width: 100%;
+    height: 100%;
+}#authGate .login-header h2 {
+    color: #3d4468;
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}#authGate .login-header p {
+    color: #9499b7;
+    font-size: 15px;
+    font-weight: 400;
+}#authGate .form-group {
+    margin-bottom: 28px;
+    position: relative;
+}#authGate .neu-input {
+    position: relative;
+    background: #e0e5ec;
+    border-radius: 15px;
+    box-shadow: 
+        inset 8px 8px 16px #bec3cf,
+        inset -8px -8px 16px #ffffff;
+    transition: all 0.3s ease;
+}#authGate .neu-input:focus-within {
+    box-shadow: 
+        inset 4px 4px 8px #bec3cf,
+        inset -4px -4px 8px #ffffff;
+}#authGate .neu-input input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 20px 24px;
+    padding-left: 55px;
+    color: #3d4468;
+    font-size: 16px;
+    font-weight: 500;
+    outline: none;
+    transition: all 0.3s ease;
+}#authGate .neu-input input::placeholder {
+    color: transparent;
+}#authGate .neu-input label {
+    position: absolute;
+    left: 55px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9499b7;
+    font-size: 16px;
+    font-weight: 400;
+    pointer-events: none;
+    transition: all 0.3s ease;
+}#authGate .neu-input input:focus + label, #authGate .neu-input input:not(:placeholder-shown) + label {
+    top: 8px;
+    font-size: 12px;
+    color: #6c7293;
+    transform: translateY(0);
+}#authGate .input-icon {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: #9499b7;
+    transition: all 0.3s ease;
+}#authGate .input-icon svg {
+    width: 100%;
+    height: 100%;
+}#authGate .neu-input:focus-within .input-icon {
+    color: #6c7293;
+}#authGate .password-group {
+    padding-right: 50px;
+}#authGate .neu-toggle {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #e0e5ec;
+    border: none;
+    width: 35px;
+    height: 35px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9499b7;
+    box-shadow: 
+        4px 4px 10px #bec3cf,
+        -4px -4px 10px #ffffff;
+    transition: all 0.3s ease;
+}#authGate .neu-toggle:hover {
+    color: #6c7293;
+}#authGate .neu-toggle:active {
+    box-shadow: 
+        inset 2px 2px 5px #bec3cf,
+        inset -2px -2px 5px #ffffff;
+}#authGate .neu-toggle svg {
+    width: 18px;
+    height: 18px;
+}#authGate .eye-closed {
+    display: none;
+}#authGate .neu-toggle.show-password .eye-open {
+    display: none;
+}#authGate .neu-toggle.show-password .eye-closed {
+    display: block;
+}#authGate .form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 35px;
+    flex-wrap: wrap;
+    gap: 16px;
+}#authGate .remember-wrapper {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}#authGate .remember-wrapper input[type="checkbox"] {
+    display: none;
+}#authGate .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    color: #6c7293;
+    font-size: 14px;
+    font-weight: 500;
+}#authGate .neu-checkbox {
+    width: 22px;
+    height: 22px;
+    background: #e0e5ec;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 
+        3px 3px 8px #bec3cf,
+        -3px -3px 8px #ffffff;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}#authGate .remember-wrapper input[type="checkbox"]:checked + .checkbox-label .neu-checkbox {
+    box-shadow: 
+        inset 2px 2px 5px #bec3cf,
+        inset -2px -2px 5px #ffffff;
+}#authGate .neu-checkbox svg {
+    width: 14px;
+    height: 14px;
+    color: #00c896;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s ease;
+}#authGate .remember-wrapper input[type="checkbox"]:checked + .checkbox-label .neu-checkbox svg {
+    opacity: 1;
+    transform: scale(1);
+}#authGate .forgot-link {
+    color: #6c7293;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}#authGate .forgot-link:hover {
+    color: #3d4468;
+}#authGate .neu-button {
+    width: 100%;
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    padding: 18px 32px;
+    color: #3d4468;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    position: relative;
+    margin-bottom: 30px;
+    box-shadow: 
+        8px 8px 20px #bec3cf,
+        -8px -8px 20px #ffffff;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}#authGate .neu-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+}#authGate .neu-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        12px 12px 30px #bec3cf,
+        -12px -12px 30px #ffffff;
+}#authGate .neu-button:hover::before {
+    left: 100%;
+}#authGate .neu-button:active {
+    transform: translateY(0);
+    box-shadow: 
+        inset 4px 4px 10px #bec3cf,
+        inset -4px -4px 10px #ffffff;
+}#authGate .btn-text {
+    position: relative;
+    z-index: 1;
+    transition: opacity 0.3s ease;
+}#authGate .btn-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}#authGate .neu-spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid #bec3cf;
+    border-top: 3px solid #6c7293;
+    border-radius: 50%;
+    animation: loginNeuSpin 1s linear infinite;
+}#authGate .neu-button.loading .btn-text {
+    opacity: 0;
+}#authGate .neu-button.loading .btn-loader {
+    opacity: 1;
+}#authGate .divider {
+    display: flex;
+    align-items: center;
+    margin: 30px 0;
+    gap: 16px;
+}#authGate .divider-line {
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #bec3cf, transparent);
+}#authGate .divider span {
+    color: #9499b7;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}#authGate .social-login {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 30px;
+}#authGate .neu-social {
+    width: 50px;
+    height: 50px;
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c7293;
+    box-shadow: 
+        6px 6px 15px #bec3cf,
+        -6px -6px 15px #ffffff;
+    transition: all 0.3s ease;
+}#authGate .neu-social:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        8px 8px 20px #bec3cf,
+        -8px -8px 20px #ffffff;
+}#authGate .neu-social:active {
+    transform: translateY(0);
+    box-shadow: 
+        inset 3px 3px 8px #bec3cf,
+        inset -3px -3px 8px #ffffff;
+}#authGate .neu-social svg {
+    width: 22px;
+    height: 22px;
+}#authGate .signup-link {
+    text-align: center;
+}#authGate .signup-link p {
+    color: #9499b7;
+    font-size: 14px;
+}#authGate .signup-link a {
+    color: #6c7293;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}#authGate .signup-link a:hover {
+    color: #3d4468;
+}#authGate .error-message {
+    color: #ff3b5c;
+    font-size: 12px;
+    font-weight: 500;
+    margin-top: 8px;
+    margin-left: 20px;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}#authGate .error-message.show {
+    opacity: 1;
+    transform: translateY(0);
+}#authGate .form-group.error .neu-input {
+    box-shadow: 
+        inset 8px 8px 16px #ffb8c4,
+        inset -8px -8px 16px #ffffff,
+        0 0 0 2px #ff3b5c;
+}#authGate .success-message {
+    display: none;
+    text-align: center;
+    padding: 40px 20px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+}#authGate .success-message.show {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}#authGate .success-message .neu-icon {
+    background: #e0e5ec;
+    color: #00c896;
+    margin-bottom: 20px;
+}#authGate .success-message h3 {
+    color: #3d4468;
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+}#authGate .success-message p {
+    color: #9499b7;
+    font-size: 14px;
+}@media (max-width: 480px) {#authGate {
+        padding: 16px;
+    }#authGate .login-card {
+        padding: 35px 25px;
+        border-radius: 20px;
+    }#authGate .login-header h2 {
+        font-size: 1.75rem;
+    }#authGate .neu-input input {
+        padding: 18px 20px;
+        padding-left: 50px;
+    }#authGate .neu-input label {
+        left: 50px;
+    }#authGate .form-options {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+}#authGate :focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+    border-radius: 4px;
+}@media (prefers-reduced-motion: reduce) {#authGate *, #authGate *::before, #authGate *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+@keyframes loginNeuSpin{to{transform:rotate(360deg)}}
+#authGate{position:fixed;inset:0;z-index:99999;overflow-y:auto;color:#3d4468;}
+#authGate[hidden],#authGate [hidden]{display:none!important}
+#authGate .login-container{margin:auto;flex-shrink:0}
+#authGate .login-header p,#authGate .neu-input label,#authGate .signup-link p{color:#68718b}
+#authGate .neu-input input{padding-top:26px;padding-bottom:14px;border-radius:15px;min-width:0}
+#authGate .neu-button{font-family:inherit}
+#authGate #loginButton:disabled{cursor:wait;transform:none}
+#authGate #authMessage{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.5;color:#8a3827;margin-top:20px;text-align:center}
+#authGate #gateSignOut{margin:20px 0 0;font-size:13px}
+#authGate .remember-wrapper input[type="checkbox"]{display:block;position:absolute;width:1px;height:1px;opacity:0}
+#authGate .remember-wrapper input:focus-visible+.checkbox-label{outline:2px solid #475475;outline-offset:5px;border-radius:5px}
+body.locked{overflow:hidden}
+@media(max-height:740px){#authGate .login-card{padding-top:28px;padding-bottom:28px}#authGate .login-header{margin-bottom:24px}#authGate .neu-icon{width:64px;height:64px;margin-bottom:16px}}
+
+</style>
 </head>
 <body class="locked">
-<div id="authGate"><div id="authCard"><p style="letter-spacing:2px;font-size:12px">PSM PROCUREMENT</p><h1 style="font-size:28px;margin:12px 0">Sign in to your dashboard</h1><p>Access for approved team members.</p>
-<form id="loginForm"><label for="loginEmail">Email</label><input id="loginEmail" type="email" autocomplete="username" required><label for="loginPassword">Password</label><input id="loginPassword" type="password" autocomplete="current-password" required><button id="loginButton" type="submit">Sign in</button></form>
-<button id="gateSignOut" type="button" hidden>Sign out / switch account</button><p id="authMessage" role="status">Connecting…</p></div></div>
+<div id="authGate" aria-label="Sign in">
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="neu-icon">
+                    <div class="icon-inner">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                </div>
+                <h2>Welcome back</h2>
+                <p>Sign in to your PSM dashboard</p>
+            </div>
+            
+            <form class="login-form" id="loginForm">
+                <div class="form-group">
+                    <div class="input-group neu-input">
+                        <input type="email" id="loginEmail" name="email" required autocomplete="email" placeholder=" ">
+                        <label for="loginEmail">Email address</label>
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                <polyline points="22,6 12,13 2,6"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="error-message" id="emailError"></span>
+                </div>
 
+                <div class="form-group">
+                    <div class="input-group neu-input password-group">
+                        <input type="password" id="loginPassword" name="password" required autocomplete="current-password" placeholder=" ">
+                        <label for="loginPassword">Password</label>
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0110 0v4"/>
+                            </svg>
+                        </div>
+                        <button type="button" class="password-toggle neu-toggle" id="passwordToggle" aria-label="Show password" aria-pressed="false">
+                            <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                <line x1="1" y1="1" x2="23" y2="23"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <span class="error-message" id="passwordError"></span>
+                </div>
+
+                <div class="form-options">
+                    <div class="remember-wrapper">
+                        <input type="checkbox" id="remember" name="remember">
+                        <label for="remember" class="checkbox-label">
+                            <div class="neu-checkbox">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                            </div>
+                            Remember me
+                        </label>
+                    </div>
+                    <a href="#" class="forgot-link" id="passwordHelp">Forgot password?</a>
+                </div>
+
+                <button type="submit" class="neu-button login-btn" id="loginButton">
+                    <span class="btn-text">Sign In</span>
+                    <div class="btn-loader">
+                        <div class="neu-spinner"></div>
+                    </div>
+                </button>
+            </form>
+
+            <div class="signup-link"><p>Need access? <a href="mailto:it.support@etinternational.ae">Contact IT Support</a></p></div>
+            <p id="authMessage" role="status" aria-live="polite">Connecting…</p>
+            <button id="gateSignOut" type="button" class="neu-button" hidden>Sign out / switch account</button>
+        </div>
+    </div>
+</div>
 <div class="app">
   <aside class="rail">
     <div class="brand"><div class="tick"></div><h1>PSM Control</h1><p>Procurement · Shipment</p></div>
@@ -1753,6 +2263,195 @@ window.exportExcel=exportExcel;window.exportPDF=exportPDF;
 
 /* Supabase connection starts in app.js. No public data fallback. */
 </script>
-<script src="./app.js"></script>
+<script>
+(() => {
+  const gate=document.getElementById('authGate'), card=gate.querySelector('.login-card');
+  const remember=document.getElementById('remember');
+  // Store the Supabase session in this tab unless Remember me is checked.
+  window.PSM_AUTH_STORAGE={
+    getItem(key){try{return sessionStorage.getItem(key)??localStorage.getItem(key)}catch{return null}},
+    setItem(key,value){try{const target=remember.checked?localStorage:sessionStorage;const other=remember.checked?sessionStorage:localStorage;target.setItem(key,value);other.removeItem(key)}catch{}},
+    removeItem(key){try{sessionStorage.removeItem(key);localStorage.removeItem(key)}catch{}}
+  };
+  try{remember.checked=!!localStorage.getItem('psm-'+new URL(PSM_CONFIG.supabaseUrl).hostname)}catch{}
+  document.getElementById('passwordToggle').onclick=()=>{
+    const p=document.getElementById('loginPassword'),b=document.getElementById('passwordToggle'),show=p.type==='password';
+    p.type=show?'text':'password';b.classList.toggle('show-password',show);b.setAttribute('aria-pressed',String(show));b.setAttribute('aria-label',show?'Hide password':'Show password');
+  };
+  document.getElementById('passwordHelp').onclick=e=>{e.preventDefault();document.getElementById('authMessage').textContent='For password assistance, contact IT Support at it.support@etinternational.ae.'};
+  const button=document.getElementById('loginButton');
+  const update=()=>{button.classList.toggle('loading',button.disabled);button.setAttribute('aria-busy',String(button.disabled))};
+  new MutationObserver(update).observe(button,{attributes:true,attributeFilter:['disabled']});
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  gate.addEventListener('pointermove',e=>{
+    if(reduced.matches||e.pointerType==='touch')return;
+    const b=card.getBoundingClientRect(),x=Math.max(-1,Math.min(1,(e.clientX-b.left-b.width/2)/(b.width/2))),y=Math.max(-1,Math.min(1,(e.clientY-b.top-b.height/2)/(b.height/2)));
+    card.style.boxShadow=`${20+x*8}px ${20+y*8}px 60px #bec3cf, ${-20-x*8}px ${-20-y*8}px 60px #ffffff`;
+  });
+  gate.addEventListener('pointerleave',()=>{card.style.boxShadow=''});
+})();
+</script>
+<script>
+/* Shared procurement book. All authority is checked by PostgreSQL, not UI flags. */
+(() => {
+  'use strict';
+  const el=id=>document.getElementById(id);
+  let client, role=null, revision=null, saved=null, draft=null, busy=false, userId=null, epoch=0;
+  let timer=null,channel=null,syncing=false,editVersion=0,lastError='',notice='',remoteRevision=null,syncState='Connecting';
+  const message=s=>{el('authMessage').textContent=s;};
+  function validate(ds){
+    if(!ds || typeof ds.meta!=='object' || Array.isArray(ds.meta) || !ds.meta || !Array.isArray(ds.records) || !ds.records.length)throw new Error('Expected meta and a non-empty records array.');
+    if(ds.records.length>20000)throw new Error('This MVP supports up to 20,000 lines per book.');
+    for(const [i,r] of ds.records.entries()){
+      if(!r||typeof r!=='object'||Array.isArray(r)||typeof r.po!=='string'||!r.po.trim())throw new Error(`Row ${i+1}: PO is required.`);
+      for(const k of ['orderQty','delivQty','pendQty','value','pendValue'])if(typeof r[k]!=='number'||!Number.isFinite(r[k])||r[k]<0)throw new Error(`Row ${i+1}: invalid ${k}.`);
+      // Legacy dashboard uses HTML templates and inline handlers. Reject executable
+      // markup / handler delimiters instead of accepting untrusted HTML in imports.
+      for(const [k,v] of Object.entries(r))if(typeof v==='string'&&(/[<>]/.test(v)||(k!=='desc'&&/["\\\r\n]/.test(v))||(/^(po|material)$/.test(k)&&/'/.test(v))||/&#(?:x[0-9a-f]+|[0-9]+);?|&(?:quot|apos|lt|gt);/i.test(v)))throw new Error(`Row ${i+1}: unsupported markup or quote in ${k}.`);
+    }
+    for(const v of Object.values(ds.meta))if(typeof v==='string'&&/[<>]/.test(v))throw new Error('Metadata must be plain text.');
+    return structuredClone(ds);
+  }
+  function applyAccess(){
+    const admin=role==='admin';
+    document.querySelectorAll('[data-admin-only]').forEach(e=>{e.hidden=!admin;});
+    if(!admin&&view==='data')view='overview';
+  }
+  function status(){el('cloudStatus').textContent=`${role||'No access'} · v${revision??'—'} · ${draft?'UNSAVED PREVIEW':syncState}${remoteRevision?' · New saved version available':''}`;}
+  function errorText(e){
+    const code=e?.code||'';let advice='';
+    if(code==='PGRST202'||code==='42883')advice='Run supabase/04_fix_save_and_live_updates.sql in SQL Editor, then retry.';
+    else if(code==='42501')advice='Sign in with one of the two confirmed admin emails. Run 02_check_users.sql to verify access.';
+    else if(code==='40001')advice='Another admin saved first. Download your preview backup, then Refresh database and re-import your reconciled file.';
+    else if(code==='23505')advice='The database reported a duplicate key. Copy the details below for diagnosis; your upload has not been discarded.';
+    else if(code==='57014')advice='The database timed out. Refresh to check the saved revision before retrying.';
+    return [e?.message||String(e),code&&'Code: '+code,e?.details&&'Details: '+e.details,e?.hint&&'Hint: '+e.hint,advice].filter(Boolean).join('\n');
+  }
+  function stopSync(){clearInterval(timer);timer=null;if(channel){client.removeChannel(channel);channel=null;}}
+  async function sync(){
+    if(!client||!role||busy||syncing||document.hidden||!navigator.onLine)return;
+    syncing=true;const ticket=epoch;
+    try{
+      const {data,error}=await client.from('psm_book').select('revision').eq('id',1).maybeSingle();
+      if(ticket!==epoch)return;if(error)throw error;
+      if(!data){lock('Your database access is no longer available. Sign in again or contact the project owner.');return;}
+      if(data.revision!==revision){
+        const changed=remoteRevision!==data.revision;remoteRevision=data.revision;
+        if(!draft&&!busy)await load({automatic:true});
+        else {status();if(changed&&view==='data')renderData();}
+      }
+      syncState='Auto updates on';status();
+    }catch(e){if(ticket===epoch){syncState='Auto update retrying';status();}}
+    finally{syncing=false;}
+  }
+  function startSync(){
+    stopSync();timer=setInterval(sync,5000);
+    channel=client.channel('psm-book-'+userId).on('postgres_changes',{event:'UPDATE',schema:'public',table:'psm_book',filter:'id=eq.1'},()=>sync()).subscribe(state=>{if(state==='SUBSCRIBED')sync();});
+    syncState='Auto updates on';status();
+  }
+
+  function lock(text){
+    stopSync();epoch++;editVersion++;lastError='';notice='';remoteRevision=null;role=null; revision=null; saved=null; draft=null; userId=null;
+    applyAccess();R=[];ALLR=[];M={};K={};exportJSON=null;lastUpload=null;
+    if(typeof aiMsgs!=='undefined')aiMsgs=[];
+    if(typeof aihMsgs!=='undefined')aihMsgs=[];
+    el('view').replaceChildren();el('foot').replaceChildren();
+    document.body.classList.add('locked');el('authGate').hidden=false;el('cloudBar').hidden=true;message(text);
+  }
+  function display(ds,preserve=false){const y=yearFilter;applyAccess();setDataset(structuredClone(ds));if(preserve&&y!=='__ALL__'){yearFilter=y;renderYearSel();applyYear(y);}status();}
+  async function load({automatic=false}={}){
+    const ticket=epoch,edits=editVersion;
+    const {data,error}=await client.rpc('psm_get_book');
+    if(ticket!==epoch)return;
+    if(automatic&&(draft||busy||edits!==editVersion))return;
+    if(error)throw error;
+    if(!data)throw new Error('No database response. Run 01_schema.sql first.');
+    const next=data.records.length?validate({meta:data.meta,records:data.records}):{meta:data.meta||{},records:[]};
+    role=data.role;revision=data.revision;saved=next;draft=null;lastUpload=null;
+    remoteRevision=null;syncState='Auto updates on';display(saved,automatic);document.body.classList.remove('locked');el('authGate').hidden=true;el('cloudBar').hidden=false;
+    if(!saved.records.length){if(role==='admin'){go('data');toast('Database is empty. Import initial-data.json, then save.');}else toast('The database is empty. Please ask an administrator to import data.');}
+  }
+  async function enter(session){
+    if(!session){lock('Enter your email and password.');el('gateSignOut').hidden=true;return;}
+    userId=session.user.id;el('gateSignOut').hidden=false;message('Loading your database…');
+    try{await load();if(role)startSync();}catch(e){lock('Could not load the database: '+e.message+'\nCheck setup and your membership, then sign in again.');el('gateSignOut').hidden=false;}
+  }
+  window.PSM={
+    isAdmin:()=>role==='admin',
+    canEdit:()=>role==='admin'&&!busy,
+    pending:()=>!!draft,
+    isBusy:()=>busy,
+    error:()=>lastError,
+    notice:()=>notice,
+    newerVersion:()=>remoteRevision,
+    dataset:()=>structuredClone(draft||saved||{meta:{},records:[]}),
+    preview(ds,name){
+      if(!this.canEdit())throw new Error('Admin access is required.');
+      draft=validate(ds);editVersion++;lastError='';notice='';lastUpload=name;display(draft);view='data';renderData();toast(`Preview: ${draft.records.length} lines. Review, then Save to Supabase.`);
+    },
+    async save(){
+      if(!this.canEdit()||!draft)return;
+      if(!confirm(`Replace the shared purchase book with these ${draft.records.length} lines? The previous version will be kept in database history.`))return;
+      busy=true;lastError='';notice='Saving your complete purchase book…';const ticket=epoch;const payload=structuredClone(draft);renderData();
+      try{
+        const {data,error}=await client.rpc('psm_save_book_v2',{p_dataset:payload,p_expected_revision:revision});
+        if(ticket!==epoch)return;
+        if(error)throw error;
+        if(!data||!Number.isFinite(Number(data.revision)))throw new Error('Unexpected save response. Refresh database to verify the result.');
+        revision=data.revision;saved=payload;draft=null;editVersion++;remoteRevision=null;notice='Saved successfully. Viewers and other admins update automatically. You can now click Refresh database to reload the saved copy.';syncState='Auto updates on';display(saved);toast('Saved. Automatic updates are enabled for all signed-in users.');
+      }catch(e){lastError=errorText(e);notice='Save was not confirmed. Your preview is retained.';toast('Save not confirmed. See the details in Update Data.',true);}
+      finally{busy=false;if(ticket===epoch){status();if(view==='data')renderData();}}
+    },
+    async reload(){
+      if(busy||role!=='admin')return;
+      if(draft&&!confirm('Discard the unsaved preview and load the saved database?'))return;
+      busy=true;
+      try{editVersion++;await load();lastError='';notice='Database refreshed. All users continue to receive automatic updates.';toast('Loaded the latest saved version.');}catch(e){lastError=errorText(e);toast('Refresh failed. See the details in Update Data.',true);}
+      finally{busy=false;if(view==='data'&&role)renderData();}
+    },
+    async signOut(){
+      if(busy){toast('Please wait for the current operation.');return;}
+      if(draft&&!confirm('Sign out and discard the unsaved preview?'))return;
+      lock('Signing out…');
+      try{const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;location.reload();}
+      catch(e){message('Sign-out failed: '+e.message+'. Use Sign out / switch account to retry.');el('gateSignOut').hidden=false;}
+    }
+  };
+  window.addEventListener('online',sync);
+  window.addEventListener('focus',sync);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync();});
+  window.addEventListener('beforeunload',e=>{if(draft){e.preventDefault();e.returnValue='';}});
+  el('gateSignOut').onclick=()=>window.PSM.signOut();
+  el('loginForm').onsubmit=async e=>{
+    e.preventDefault();if(!client)return;
+    el('loginButton').disabled=true;message('Signing in…');
+    try{
+      const {data,error}=await client.auth.signInWithPassword({email:el('loginEmail').value.trim(),password:el('loginPassword').value});
+      if(error)throw error;
+      el('loginPassword').value='';await enter(data.session);
+    }catch(err){message(err.message);}finally{el('loginButton').disabled=false;}
+  };
+  async function boot(){
+    const c=window.PSM_CONFIG;
+    if(!c||!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(c.supabaseUrl)||!c.supabaseKey||c.supabaseKey.includes('YOUR_')){
+      message('Setup required: edit site/config.js with your Supabase project URL and publishable key. Follow START-HERE.md.');el('loginButton').disabled=true;return;
+    }
+    if(c.supabaseKey.startsWith('sb_secret_')){message('Wrong key: use a publishable key, never a secret key.');return;}
+    if(c.supabaseKey.split('.').length===3){
+      try{const claims=JSON.parse(atob(c.supabaseKey.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));if(claims.role!=='anon'){message('Wrong legacy key: only the anon key may be used in the browser.');return;}}
+      catch{message('Invalid legacy API key. Copy the publishable key from Supabase.');return;}
+    }
+    if(!window.supabase){message('Supabase library did not load. Check your internet connection and reload.');return;}
+    client=window.supabase.createClient(c.supabaseUrl,c.supabaseKey,{auth:{persistSession:true,storage:window.PSM_AUTH_STORAGE,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'psm-'+new URL(c.supabaseUrl).hostname}});
+    client.auth.onAuthStateChange((event,session)=>{
+      if(event==='SIGNED_OUT'){lock('You have signed out.');el('gateSignOut').hidden=true;}
+      else if(event==='SIGNED_IN'&&userId&&userId!==session?.user.id){lock('Account changed. Reloading…');location.reload();}
+    });
+    try{const {data,error}=await client.auth.getSession();if(error)throw error;await enter(data.session);}catch(e){message('Connection failed: '+e.message);}
+  }
+  boot();
+})();
+
+</script>
 </body>
 </html>
