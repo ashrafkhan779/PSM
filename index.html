@@ -313,7 +313,7 @@ td.mdesc{max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellips
 #authGate[hidden]{display:none}#authCard{background:white;max-width:430px;width:100%;padding:36px;border-radius:14px;box-shadow:0 20px 70px #0005}
 #authCard input{width:100%;box-sizing:border-box;padding:12px;margin:6px 0 16px;border:1px solid #b6c2d1;border-radius:6px;font-size:16px}
 #authCard button{padding:12px 20px;background:#245b91;color:white;border:0;border-radius:6px;cursor:pointer}
-#authMessage{white-space:pre-wrap;line-height:1.5;margin-top:18px;color:#98410b}#cloudBar{position:fixed;bottom:10px;right:15px;z-index:1000;background:#16324f;color:white;padding:9px 12px;border-radius:9px;font:12px Arial;box-shadow:0 4px 18px #0003;max-width:90vw}#cloudBar button{margin-left:10px;padding:5px 8px;cursor:pointer}body.locked .app{visibility:hidden}
+#authMessage{white-space:pre-wrap;line-height:1.5;margin-top:18px;color:#98410b}#cloudBar{position:relative;margin-bottom:16px;background:#16324f;color:white;padding:9px 12px;border-radius:9px;font:12px Arial;box-shadow:0 4px 18px #0003;max-width:90vw}#cloudBar[hidden]{display:none}#cloudBar button{margin-left:10px;padding:5px 8px;cursor:pointer}body.locked .app{visibility:hidden}
 </style>
 <script src="./config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
@@ -322,7 +322,7 @@ td.mdesc{max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellips
 <div id="authGate"><div id="authCard"><p style="letter-spacing:2px;font-size:12px">PSM PROCUREMENT</p><h1 style="font-size:28px;margin:12px 0">Sign in to your dashboard</h1><p>Access for approved team members.</p>
 <form id="loginForm"><label for="loginEmail">Email</label><input id="loginEmail" type="email" autocomplete="username" required><label for="loginPassword">Password</label><input id="loginPassword" type="password" autocomplete="current-password" required><button id="loginButton" type="submit">Sign in</button></form>
 <button id="gateSignOut" type="button" hidden>Sign out / switch account</button><p id="authMessage" role="status">Connecting…</p></div></div>
-<div id="cloudBar" hidden><span id="cloudStatus"></span><button onclick="PSM.reload()">Refresh</button><button onclick="PSM.signOut()">Sign out</button></div>
+
 <div class="app">
   <aside class="rail">
     <div class="brand"><div class="tick"></div><h1>PSM Control</h1><p>Procurement · Shipment</p></div>
@@ -340,6 +340,7 @@ td.mdesc{max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellips
     <div class="railfoot" id="foot"></div>
   </aside>
   <main class="main">
+<div id="cloudBar" hidden><span id="cloudStatus" role="status"></span><button data-admin-only hidden onclick="PSM.reload()">Refresh database</button><button onclick="PSM.signOut()">Sign out</button></div>
     <div class="topbar">
       <div class="hl"><h2 id="ttl">Portfolio Overview</h2><p id="sub">Live status across the PSM–ET purchase book</p></div>
       <div class="tools">
@@ -1652,15 +1653,18 @@ function renderData(){
   const edit=window.PSM?.canEdit(), pending=window.PSM?.pending();
   $('#view').innerHTML=`<div class="card"><h3>Shared database</h3>
     <p>${ALLR.length} lines · ${pending?'Unsaved import preview':'Saved Supabase data'} · Source date: ${aiEsc(M.generated||'Not supplied')}</p>
+    ${PSM.error()?`<div role="alert" style="white-space:pre-wrap;background:#fff0ed;color:#83291b;padding:16px;border-radius:8px;margin:12px 0"><b>Save / refresh details</b>\n${aiEsc(PSM.error())}</div>`:''}
+    ${PSM.notice()?`<p role="status">${aiEsc(PSM.notice())}</p>`:''}
+    ${PSM.newerVersion()?'<p style="color:#aa5a00">Another admin saved a newer version. Your unsaved preview is protected. Download a backup before refreshing and reconciling your upload.</p>':''}
     <p>Imports replace the whole purchase book. Every source row is preserved, including repeated PO/line combinations.</p>
     <div style="display:flex;flex-wrap:wrap;gap:12px;margin:20px 0">
     <button class="btn primary" onclick="pickFile()" ${edit?'':'disabled'}>Import Excel / JSON</button>
-    <button class="btn primary" onclick="PSM.save()" ${edit&&pending?'':'disabled'}>Save to Supabase</button>
-    <button class="btn ghost" onclick="PSM.reload()">${pending?'Discard preview / reload':'Refresh database'}</button>
+    <button class="btn primary" onclick="PSM.save()" ${edit&&pending?'':'disabled'}>${PSM.isBusy()?'Please wait…':'Save to Supabase'}</button>
+    <button class="btn ghost" onclick="PSM.reload()" ${PSM.isBusy()?'disabled':''}>${pending?'Discard preview / reload':'Refresh database'}</button>
     <button class="btn ghost" onclick="downloadJSON()">Download private backup</button>
     <button class="btn ghost" onclick="exportBaseExcel()">Export Excel</button></div>
     <p>${edit?'After importing, review any dashboard tab. Save to Supabase publishes the complete dataset for all approved users.':'Viewer access: you can view the dashboard and download reports.'}</p>
-    <p>Saved changes appear for other users when they refresh. Concurrent saves are checked to prevent overwriting newer data.</p>
+    <p>Saved changes load automatically for viewers and other admins. Updates use a live connection with a 5-second backup check while the page is active. Unsaved admin previews are never replaced automatically.</p>
     <p>Excel export follows the selected year. Private JSON backup always includes every year.</p></div>`;
 }
 
