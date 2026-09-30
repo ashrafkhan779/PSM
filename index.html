@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>PSM · Procurement & Shipment Control</title>
+<title>PSM Order Overview</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -835,7 +835,7 @@ body.locked{overflow:hidden}
 </div>
 <div class="app">
   <aside class="rail">
-    <div class="brand"><div class="tick"></div><h1>PSM Control</h1><p>Procurement · Shipment</p></div>
+    <div class="brand"><div class="tick"></div><h1>PSM Order Overview</h1></div>
     <nav class="nav" id="nav">
       <button data-v="overview" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Overview</button>
       <button data-v="po"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>PO Tracking</button>
@@ -911,6 +911,11 @@ function deriveState(cur,stage,tfCat){
   if(tfCat==='Delayed')return'Overdue';
   return'Pending - On Track';
 }
+function normalizeQCStatus(value){
+  const status=String(value??'').trim();
+  const key=status.toLowerCase().replace(/[^a-z0-9]/g,'');
+  return ({poinprocess:'PO In-Process',qcapproved:'QC Approved',awaitingpsmapproval:'Awaiting PSM Approval'})[key]||status;
+}
 function buildDataset(rows){
   const recs=[];
   for(const row of rows){
@@ -949,7 +954,7 @@ function buildDataset(rows){
       orderUnit:String(pick(row,'Order Unit')??'').trim(),
       unitPrice:Number(pick(row,'Unit Price','Net Price'))||0,
       currency:String(pick(row,'Currency')??'').trim(),
-      qcStatus:String(pick(row,'QC Status')??'').trim(),
+      qcStatus:normalizeQCStatus(pick(row,'QC Status')),
       qcSubmitted:iso(toDate(pick(row,'QC Submitted date','QC Submitted Date','QC Submission date'))),
       qcApproved:iso(toDate(pick(row,'QC Approval date','QC Approval Date','QC Approved date'))),
       shipStatus:String(pick(row,'Shipment Status')??'').trim(),
@@ -1138,7 +1143,7 @@ function renderOverview(){
      <div class="chip">Supplier <b>${M.supplier}</b></div><div class="chip">Plant <b>${M.plant}</b></div></div>
    <div class="kpis k6">
      ${kpi('Order Book Value',usdK(K.poValue),num(K.pos)+' POs · '+num(K.lines)+' lines · '+num(K.orderQ)+' units','neut')}
-     ${lkpi('Completed Value',usdK(K.deliveredVal),uniq(K.delivered,x=>x.po)+' POs · '+num(K.delivered.length)+' lines · '+num(K.delivQ)+' units','ok','delivered')}
+     ${lkpi('DISPATCHED VALUE',usdK(K.deliveredVal),uniq(K.delivered,x=>x.po)+' POs · '+num(K.delivered.length)+' lines · '+num(K.delivQ)+' units','ok','delivered')}
      ${lkpi('Open / Pending Value',usdK(K.pendValue),uniq(_open,x=>x.po)+' POs · '+num(_open.length)+' lines · '+num(K.pendQ)+' units','flight','open')}
      ${lkpi('Overdue Value',usdK(K.overdueVal),uniq(K.overdue,x=>x.po)+' POs · '+K.overdue.length+' lines · avg '+Math.round(K.avgDelay)+'d','hot','overdue')}
      ${kpi('Completion',(K.compl*100).toFixed(1)+'%',uniq(K.delivered,x=>x.po)+' POs · '+num(K.delivered.length)+' lines · '+num(K.delivQ)+' units','ok')}
@@ -1371,7 +1376,7 @@ function renderExc(){
 
 /* ================= AGING & DELAYS ================= */
 const AGE=[{k:'b15',t:'Due ≤ 15 days',lo:0,hi:15},{k:'b30',t:'16 – 30 days',lo:16,hi:30},{k:'b45',t:'31 – 45 days',lo:31,hi:45},{k:'b60',t:'46 – 60 days',lo:46,hi:60},{k:'b90',t:'61 – 90 days',lo:61,hi:90},{k:'b90p',t:'90 days +',lo:91,hi:1e9}];
-const AGE_ORDER=[{k:'overdue',t:'Overdue',c:'#C0512A'},{k:'b15',t:'Due ≤15d',c:'#E0894C'},{k:'b30',t:'16–30d',c:'#C0902E'},{k:'b45',t:'31–45d',c:'#8A9152'},{k:'b60',t:'46–60d',c:'#5E8567'},{k:'b90',t:'61–90d',c:'#5B7A9E'},{k:'b90p',t:'90d+',c:'#5C6B7D'},{k:'unconfirmed',t:'Unconfirmed',c:'#B8862B'},{k:'ready',t:'Ready to Ship',c:'#2E6FB0'}];
+const AGE_ORDER=[{k:'overdue',t:'Overdue',c:'#C0512A'},{k:'b15',t:'Due ≤15d',c:'#E0894C'},{k:'b30',t:'16–30d',c:'#C0902E'},{k:'b45',t:'31–45d',c:'#8A9152'},{k:'b60',t:'46–60d',c:'#5E8567'},{k:'b90',t:'61–90d',c:'#5B7A9E'},{k:'b90p',t:'90d+',c:'#5C6B7D'},{k:'unconfirmed',t:'To be Updated',c:'#B8862B'},{k:'ready',t:'Ready to Ship',c:'#2E6FB0'}];
 let ageBucket='all',ageMode='buckets',ageProd='__ALL__';
 function agingRecs(){
   const today=Date.parse(new Date().toISOString().slice(0,10));
@@ -1480,13 +1485,19 @@ function renderQC(){
    <div class="tablewrap"><table><thead><tr><th>PO #</th><th class="center">Line</th><th>Material</th><th>Description</th><th>Product</th><th class="right">Qty</th><th class="right">Value</th><th>QC status</th><th>Submitted</th><th>Approved</th><th class="center">Days</th></tr></thead><tbody>
    ${L.length?L.map(x=>`<tr onclick="openPO('${x.po}')"><td class="mono">${x.po}</td><td class="center mono">${x.line??'—'}</td><td class="mono">${x.material}</td><td class="mdesc" title="${(x.desc||'').replace(/"/g,'&quot;')}">${x.desc||'—'}</td><td>${x.product}</td><td class="right mono">${num(x.orderQty)}</td><td class="right mono">${usd(x.value)}</td><td><span class="kchip" style="${chip(x.qcStatus)}">${x.qcStatus}</span></td><td class="mono">${fmtd(x.qcSubmitted)}</td><td class="mono">${fmtd(x.qcApproved)}</td><td class="center mono">${qcDays(x)}</td></tr>`).join(''):`<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px">No QC lines.</td></tr>`}
    </tbody></table></div></div>`;
-  const noqc=R.filter(x=>!x.qcStatus);
-  const segs=[{label:'QC Approved',value:sum(approvedRecs,x=>x.value),color:'#1E8A6E',n:approvedRecs.length,po:uniq(approvedRecs,x=>x.po)},
-    {label:'Awaiting PSM Approval',value:sum(waitRecs,x=>x.value),color:'#E0602B',n:waitRecs.length,po:uniq(waitRecs,x=>x.po)},
-    {label:'No QC status recorded',value:sum(noqc,x=>x.value),color:'#98A6B9',n:noqc.length,po:uniq(noqc,x=>x.po)}];
+  const coverageStatuses=['QC Approved','Awaiting PSM Approval','PO In-Process'];
+  const coverageColors=['#1E8A6E','#E0602B','#98A6B9'];
+  const segs=coverageStatuses.map((label,i)=>{
+    const rows=R.filter(x=>x.qcStatus===label);
+    return {label,value:sum(rows,x=>x.value),color:coverageColors[i],n:rows.length,po:uniq(rows,x=>x.po)};
+  });
+  const other=R.filter(x=>x.qcStatus&&!coverageStatuses.includes(x.qcStatus));
+  const unspecified=R.filter(x=>!x.qcStatus);
+  if(other.length)segs.push({label:'Other QC statuses',value:sum(other,x=>x.value),color:'#8A75B5',n:other.length,po:uniq(other,x=>x.po)});
+  if(unspecified.length)segs.push({label:'Not specified',value:sum(unspecified,x=>x.value),color:'#CBD2DC',n:unspecified.length,po:uniq(unspecified,x=>x.po)});
   const dtot=segs.reduce((s,x)=>s+x.value,0)||1;
   const dleg=segs.map(s=>`<div class="dleg"><span class="dsw" style="background:${s.color}"></span><div><div class="dll">${s.label}</div><div class="dlv">${usdK(s.value)} · ${num(s.n)} lines · ${s.po} POs · ${(s.value/dtot*100).toFixed(1)}%</div></div></div>`).join('');
-  const donutCard=`<div class="card" style="margin-top:14px"><h3>QC coverage</h3><p class="cap">QC Approved vs Awaiting PSM approval vs not yet in QC — share of committed value</p><div class="donutwrap">${donutSVG(segs)}<div class="dlegend">${dleg}</div></div></div>`;
+  const donutCard=`<div class="card" style="margin-top:14px"><h3>QC coverage</h3><p class="cap">QC Approved, Awaiting PSM Approval and PO In-Process — share of committed value. Blank Excel statuses are shown as Not specified.</p><div class="donutwrap">${donutSVG(segs)}<div class="dlegend">${dleg}</div></div></div>`;
   $('#view').innerHTML=filters+kpis+donutCard+table;
 }
 window.setQCf=v=>{qcFilter=v;renderQC();};
