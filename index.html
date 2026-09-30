@@ -1977,6 +1977,13 @@ function repWeekOpts(){
 window.setRepYear=v=>{repYear=v;repWeek='__ALL__';renderReports();};
 window.setRepWeek=v=>{repWeek=v;renderReports();};
 function repStatusChip(s){const M={'In-Process':['#3A76B8','rgba(58,118,184,.15)'],'Material Ready to Ship':['#159C9C','rgba(21,156,156,.16)'],'Shipped':['#1E8A6E','rgba(30,138,110,.16)'],'Under Clarification':['#C63F27','rgba(198,63,39,.15)']};const c=M[s]||['var(--steel)','var(--panel2)'];return `<span class="kchip" style="background:${c[1]};color:${c[0]};font-weight:600">${s}</span>`;}
+function repSortedRows(rows){
+  return rows.slice().sort((a,b)=>{
+    if(repSortKey==='qc'){const av=a.qcStatus||'',bv=b.qcStatus||'';return (av<bv?-1:av>bv?1:0)*repSortDir;}
+    if(repSortKey==='status'){const av=REP_ORDER[repStatus(a)]??9,bv=REP_ORDER[repStatus(b)]??9;return (av-bv)*repSortDir;}
+    const oa=REP_ORDER[repStatus(a)]??9,ob=REP_ORDER[repStatus(b)]??9;if(oa!==ob)return oa-ob;
+    const ea=repEff(a).d||'9999',eb=repEff(b).d||'9999';return ea<eb?-1:ea>eb?1:0;});
+}
 function renderReports(){
   $('#ttl').textContent='Reports';$('#sub').textContent='Week-based ship report by current status — independent of the top filters';
   const base=repRows();
@@ -1987,15 +1994,12 @@ function renderReports(){
   const filters=`<div class="filters">
      ${selectGroup('Year','repyear',repYearOpts(),repYear,'setRepYear')}
      ${selectGroup('Week','repweek',repWeekOpts(),repWeek,'setRepWeek')}
-     <button class="btn primary" onclick="exportReportPDF()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3M7 10l5 5 5-5M5 21h14"/></svg>Download PDF</button></div>`;
+     <button class="btn primary" onclick="exportReportPDF()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3M7 10l5 5 5-5M5 21h14"/></svg>Download PDF</button>
+     <button class="btn primary" onclick="exportReportExcel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg>Download Excel</button></div>`;
   const cardMeta=[{k:'Shipped',c1:'#1E8A6E',c2:'#45C592'},{k:'Material Ready to Ship',c1:'#159C9C',c2:'#37CDB6'},{k:'In-Process',c1:'#3A76B8',c2:'#63A0E6'},{k:'Under Clarification',c1:'#C63F27',c2:'#F0824E'}];
   const statCards=`<div class="statcards">`+cardMeta.map(m=>{const L=base.filter(x=>repStatus(x)===m.k);return `<div class="statcard${repStat===m.k?' on':''}" style="--c1:${m.c1};--c2:${m.c2}" onclick="setRepStat('${m.k}')"><div class="scname">${m.k}</div><div class="scval">${usdK(sum(L,x=>x.value))}</div><div class="scdet"><div><b>${num(uniq(L,x=>x.po))}</b> POs</div><div><b>${num(L.length)}</b> lines</div><div><b>${num(sum(L,x=>x.orderQty))}</b> units</div></div></div>`;}).join('')+`</div>`;
   const cols=[['Supplying Plant','6%'],['Supplier','8%'],['PSM PO DATE','5.5%'],['PSM Required Date','5.5%'],['ET Promised Date','5.5%'],['PSM PO#','6%'],['Line Item#','3.5%'],['Material#','6.5%'],['Material Description','12%'],['Order Quantity','4.5%'],['Order Unit','3.5%'],['Unit Price','5.5%'],['Currency','3.5%'],['Total Value','6%'],['QC Status','7%'],['Current Status','7.5%']];
-  const repSorted=rows.slice().sort((a,b)=>{
-    if(repSortKey==='qc'){const av=a.qcStatus||'',bv=b.qcStatus||'';return (av<bv?-1:av>bv?1:0)*repSortDir;}
-    if(repSortKey==='status'){const av=REP_ORDER[repStatus(a)]??9,bv=REP_ORDER[repStatus(b)]??9;return (av-bv)*repSortDir;}
-    const oa=REP_ORDER[repStatus(a)]??9,ob=REP_ORDER[repStatus(b)]??9;if(oa!==ob)return oa-ob;
-    const ea=repEff(a).d||'9999',eb=repEff(b).d||'9999';return ea<eb?-1:ea>eb?1:0;});
+  const repSorted=repSortedRows(rows);
   const rowHTML=repSorted.length?repSorted.map(x=>`<tr onclick="openPO('${x.po}')"><td class="mono">${x.plant||'—'}</td><td title="${(x.supplier||'').replace(/"/g,'&quot;')}">${x.supplier||'—'}</td><td class="mono">${fmtd(x.poDate)}</td><td class="mono">${fmtd(x.reqDate)}</td><td class="mono">${fmtd(x.expShip)}</td><td class="mono">${x.po}</td><td class="center mono">${x.line??'—'}</td><td class="mono">${x.material}</td><td title="${(x.desc||'').replace(/"/g,'&quot;')}">${x.desc||'—'}</td><td class="right mono">${num(x.orderQty)}</td><td class="mono">${x.orderUnit||'—'}</td><td class="right mono">${x.unitPrice?x.unitPrice.toFixed(2):'—'}</td><td class="mono">${x.currency||'—'}</td><td class="right mono">${usd(x.value)}</td><td>${x.qcStatus?x.qcStatus:'—'}</td><td>${repStatusChip(repStatus(x))}</td></tr>`).join(''):`<tr><td colspan="16" style="text-align:center;color:var(--muted);padding:24px">No lines for this selection.</td></tr>`;
   const sortArrow=sk=>repSortKey===sk?(repSortDir>0?' ▲':' ▼'):' ⇅';
   const table=`<div class="card" style="margin-top:14px"><h3>Weekly ship report — ${scope}${repStat==='__ALL__'?'':' · '+repStat} <span class="fcount">${rows.length} lines · ${uniq(rows,x=>x.po)} POs · ${usdK(sum(rows,x=>x.value))}</span></h3><p class="cap">Shipped lines appear only in the week they actually shipped. Material Ready to Ship, In-Process and Under Clarification lines always appear (the full open backlog).</p>
@@ -2005,6 +2009,28 @@ function renderReports(){
 }
 window.repSort=k=>{if(repSortKey===k)repSortDir*=-1;else{repSortKey=k;repSortDir=1;}renderReports();};
 window.setRepStat=s=>{repStat=(repStat===s)?'__ALL__':s;renderReports();};
+window.exportReportExcel=()=>{try{
+  if(!window.XLSX)throw new Error('Excel library unavailable. Check your internet connection and reload.');
+  const base=repRows();
+  const rows=repSortedRows(repStat==='__ALL__'?base:base.filter(x=>repStatus(x)===repStat));
+  const scope=(repWeek==='__UNCONF__'?'Under clarification':repWeek!=='__ALL__'?(repWeekOpts().find(o=>o.v===repWeek)||{t:repWeek}).t:(repYear!=='__ALL__'?'Year '+repYear:'All weeks'))+(repStat==='__ALL__'?'':' · '+repStat);
+  const heads=['Supplying Plant','Supplier','PSM PO DATE','PSM Required Date','ET Promised Date','PSM PO#','Line Item#','Material#','Material Description','Order Quantity','Order Unit','Unit Price','Currency','Total Value','QC Status','Current Status'];
+  const date=s=>{if(!s)return null;const d=new Date(s+'T00:00:00Z');return Number.isNaN(d.getTime())?null:d;};
+  const number=v=>v==null||v===''?null:(Number.isFinite(Number(v))?Number(v):null);
+  const body=rows.map(x=>[String(x.plant??''),x.supplier||'',date(x.poDate),date(x.reqDate),date(x.expShip),String(x.po??''),x.line??'',String(x.material??''),x.desc||'',number(x.orderQty),x.orderUnit||'',number(x.unitPrice),x.currency||'',number(x.value),x.qcStatus||'',repStatus(x)]);
+  const ws=XLSX.utils.aoa_to_sheet([heads,...body],{cellDates:false,dateNF:'dd mmm yyyy'});
+  ws['!cols']=[18,28,17,19,19,19,12,22,48,17,12,17,12,19,24,26].map(wch=>({wch}));
+  ws['!autofilter']={ref:XLSX.utils.encode_range({r:0,c:0},{r:rows.length,c:15})};
+  for(let i=1;i<=rows.length;i++)for(const c of [9,11,13]){const cell=ws[XLSX.utils.encode_cell({r:i,c})];if(cell&&cell.t==='n')cell.z=c===9?'#,##0.########':'#,##0.00';}
+  const summary=[['PSM Weekly Ship Report'],['Selection',scope],['Source date',M.generated||''],['Exported at',new Date().toISOString()],['Selected lines',rows.length],['Selected POs',uniq(rows,x=>x.po)],['Selected units',sum(rows,x=>x.orderQty)],['Selected order value',sum(rows,x=>x.value)],[],['Status summary for selected year/week (before status-card filter)'],['Status','POs','Lines','Units','Order value']];
+  for(const status of ['Shipped','Material Ready to Ship','In-Process','Under Clarification']){const list=base.filter(x=>repStatus(x)===status);summary.push([status,uniq(list,x=>x.po),list.length,sum(list,x=>x.orderQty),sum(list,x=>x.value)]);}
+  summary.push([],['Report rule','Shipped lines follow the selected actual ship week/year; the full open backlog is included, matching Reports.'],['Currency','Each report row retains its currency. Summary values follow the dashboard totals.']);
+  const info=XLSX.utils.aoa_to_sheet(summary);info['!cols']=[38,80,14,18,20].map(wch=>({wch}));
+  if(info.B8)info.B8.z='#,##0.00';for(let r=12;r<=15;r++)if(info['E'+r])info['E'+r].z='#,##0.00';
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Weekly Report');XLSX.utils.book_append_sheet(wb,info,'Summary');
+  XLSX.writeFile(wb,'PSM_Weekly_Report_'+scope.replace(/[^a-z0-9]+/gi,'_')+'.xlsx');
+  toast('Excel report downloaded · '+rows.length+' lines.');
+}catch(e){toast('Excel report failed: '+e.message,true);}};
 window.exportReportPDF=()=>{ensurePDF().then(()=>{
   const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'a3'});
   const base=repRows();const rows=(repStat==='__ALL__'?base:base.filter(x=>repStatus(x)===repStat)).slice().sort((a,b)=>{const oa=REP_ORDER[repStatus(a)]??9,ob=REP_ORDER[repStatus(b)]??9;if(oa!==ob)return oa-ob;const ea=repEff(a).d||'9999',eb=repEff(b).d||'9999';return ea<eb?-1:ea>eb?1:0;});
