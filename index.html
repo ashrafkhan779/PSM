@@ -914,7 +914,7 @@ function deriveState(cur,stage,tfCat){
 function normalizeQCStatus(value){
   const status=String(value??'').trim();
   const key=status.toLowerCase().replace(/[^a-z0-9]/g,'');
-  return ({poinprocess:'PO In-Process',qcapproved:'QC Approved',awaitingpsmapproval:'Awaiting PSM Approval'})[key]||status;
+  return ({notapplicable:'Not Applicable',poinprocess:'PO In-Process',qcapproved:'QC Approved',awaitingpsmapproval:'Awaiting PSM Approval'})[key]||status;
 }
 function buildDataset(rows){
   const recs=[];
@@ -1485,8 +1485,8 @@ function renderQC(){
    <div class="tablewrap"><table><thead><tr><th>PO #</th><th class="center">Line</th><th>Material</th><th>Description</th><th>Product</th><th class="right">Qty</th><th class="right">Value</th><th>QC status</th><th>Submitted</th><th>Approved</th><th class="center">Days</th></tr></thead><tbody>
    ${L.length?L.map(x=>`<tr onclick="openPO('${x.po}')"><td class="mono">${x.po}</td><td class="center mono">${x.line??'—'}</td><td class="mono">${x.material}</td><td class="mdesc" title="${(x.desc||'').replace(/"/g,'&quot;')}">${x.desc||'—'}</td><td>${x.product}</td><td class="right mono">${num(x.orderQty)}</td><td class="right mono">${usd(x.value)}</td><td><span class="kchip" style="${chip(x.qcStatus)}">${x.qcStatus}</span></td><td class="mono">${fmtd(x.qcSubmitted)}</td><td class="mono">${fmtd(x.qcApproved)}</td><td class="center mono">${qcDays(x)}</td></tr>`).join(''):`<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px">No QC lines.</td></tr>`}
    </tbody></table></div></div>`;
-  const coverageStatuses=['QC Approved','Awaiting PSM Approval','PO In-Process'];
-  const coverageColors=['#1E8A6E','#E0602B','#98A6B9'];
+  const coverageStatuses=['QC Approved','Awaiting PSM Approval','PO In-Process','Not Applicable'];
+  const coverageColors=['#1E8A6E','#E0602B','#98A6B9','#557FC2'];
   const segs=coverageStatuses.map((label,i)=>{
     const rows=R.filter(x=>x.qcStatus===label);
     return {label,value:sum(rows,x=>x.value),color:coverageColors[i],n:rows.length,po:uniq(rows,x=>x.po)};
@@ -1497,7 +1497,7 @@ function renderQC(){
   if(unspecified.length)segs.push({label:'Not specified',value:sum(unspecified,x=>x.value),color:'#CBD2DC',n:unspecified.length,po:uniq(unspecified,x=>x.po)});
   const dtot=segs.reduce((s,x)=>s+x.value,0)||1;
   const dleg=segs.map(s=>`<div class="dleg"><span class="dsw" style="background:${s.color}"></span><div><div class="dll">${s.label}</div><div class="dlv">${usdK(s.value)} · ${num(s.n)} lines · ${s.po} POs · ${(s.value/dtot*100).toFixed(1)}%</div></div></div>`).join('');
-  const donutCard=`<div class="card" style="margin-top:14px"><h3>QC coverage</h3><p class="cap">QC Approved, Awaiting PSM Approval and PO In-Process — share of committed value. Blank Excel statuses are shown as Not specified.</p><div class="donutwrap">${donutSVG(segs)}<div class="dlegend">${dleg}</div></div></div>`;
+  const donutCard=`<div class="card" style="margin-top:14px"><h3>QC coverage</h3><p class="cap">QC Approved, Awaiting PSM Approval, PO In-Process and Not Applicable — share of committed value. Blank Excel statuses are shown as Not specified.</p><div class="donutwrap">${donutSVG(segs)}<div class="dlegend">${dleg}</div></div></div>`;
   $('#view').innerHTML=filters+kpis+donutCard+table;
 }
 window.setQCf=v=>{qcFilter=v;renderQC();};
