@@ -993,7 +993,10 @@ const stateShort=s=>s==='Delivered - On Time'?'Delivered':s==='Overdue'?'Overdue
 let R=[],M={},K={},view='overview',exportJSON=null;
 let ALLR=[],yearFilter='__ALL__';
 const poYear=x=>x.poDate?x.poDate.slice(0,4):null;
-function yearOpts(){const ys=[...new Set(ALLR.map(poYear).filter(Boolean))].sort((a,b)=>b-a);return [{v:'__ALL__',t:'All years'}].concat(ys.map(y=>({v:y,t:y})));}
+function actualShipYear(x){const date=String(x.actShip||'');return /^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(Date.parse(date))?date.slice(0,4):null;}
+function isInvoiced(x){return String(x.stage||'').trim().toLowerCase()==='shipped'&&!!actualShipYear(x)&&(yearFilter==='__ALL__'||actualShipYear(x)===yearFilter);}
+function invoicedRows(){return ALLR.filter(isInvoiced);}
+function yearOpts(){const ys=[...new Set(ALLR.flatMap(x=>[poYear(x),actualShipYear(x)]).filter(Boolean))].sort((a,b)=>b-a);return [{v:'__ALL__',t:'All years'}].concat(ys.map(y=>({v:y,t:y})));}
 function applyYear(v){if(v!=null)yearFilter=v;R=(yearFilter==='__ALL__')?ALLR.slice():ALLR.filter(x=>poYear(x)===yearFilter);computeK();go(view);}
 window.setYear=v=>applyYear(v);
 function renderYearSel(){const sel=$('#yearSel');if(!sel)return;sel.innerHTML=yearOpts().map(o=>`<option value="${o.v}"${o.v===yearFilter?' selected':''}>${o.t}</option>`).join('');}
@@ -1011,6 +1014,7 @@ function computeK(){
     ontrack:R.filter(x=>x.state==='Pending - On Track')};
   K.overdueVal=sum(K.overdue,x=>x.pendValue);K.compl=K.orderQ?K.delivQ/K.orderQ:0;
   K.deliveredVal=sum(K.delivered,x=>x.value);
+  K.invoiced=invoicedRows();K.invoicedVal=sum(K.invoiced,x=>x.value);K.invoicedQty=sum(K.invoiced,x=>x.orderQty);
   K.overdueRate=K.lines?K.overdue.length/K.lines:0;K.avgDelay=K.overdue.length?sum(K.overdue,x=>x.delay)/K.overdue.length:0;
 }
 function setDataset(ds){ALLR=ds.records;M=ds.meta;yearFilter='__ALL__';R=ALLR.slice();
@@ -1135,8 +1139,6 @@ window.selStage=n=>{stageSel=(stageSel===n)?null:n;renderOverview();};
 function renderOverview(){
   $('#ttl').textContent='Portfolio Overview';$('#sub').textContent='Live status across the PSM–ET purchase book';
   const _open=R.filter(x=>x.pendQty>0);
-  const _today=new Date().toISOString().slice(0,10);
-  const _future=R.filter(x=>(x.tfRaw&&/future po/i.test(x.tfRaw))||(x.poDate&&x.poDate>_today));
   const lkpi=(lab,val,sub,cls,scope)=>`<div class="kpi ${cls} qlink" onclick="poFrom('${scope}')" title="Open ${lab} in PO Tracking →"><div class="bar"></div><div class="lab">${lab} ↗</div><div class="val">${val}</div><div class="sub">${sub||''}</div></div>`;
   $('#view').innerHTML=`
    <div class="filters" style="margin-bottom:16px">
@@ -1147,7 +1149,7 @@ function renderOverview(){
      ${lkpi('Open / Pending Value',usdK(K.pendValue),uniq(_open,x=>x.po)+' POs · '+num(_open.length)+' lines · '+num(K.pendQ)+' units','flight','open')}
      ${lkpi('Overdue Value',usdK(K.overdueVal),uniq(K.overdue,x=>x.po)+' POs · '+K.overdue.length+' lines · avg '+Math.round(K.avgDelay)+'d','hot','overdue')}
      ${kpi('Completion',(K.compl*100).toFixed(1)+'%',uniq(K.delivered,x=>x.po)+' POs · '+num(K.delivered.length)+' lines · '+num(K.delivQ)+' units','ok')}
-     ${lkpi('Future Order',usdK(sum(_future,x=>x.value)),uniq(_future,x=>x.po)+' POs · '+num(_future.length)+' lines · '+num(sum(_future,x=>x.orderQty))+' units','neut','future')}</div>
+     ${lkpi('Invoiced Value',usdK(K.invoicedVal),uniq(K.invoiced,x=>x.po)+' POs · '+num(K.invoiced.length)+' lines · '+num(K.invoicedQty)+' units<br>Shipped · Actual Ship date · '+(yearFilter==='__ALL__'?'All years':yearFilter),'neut','invoiced')}</div>
    <div class="grid g2" style="margin-bottom:14px">
      <div class="card"><h3>Purchase-order value by month raised</h3><p class="cap">PO issue date · USD committed (value shown at each point)</p>${monthTrend()}</div>
      <div class="card"><h3>Delivery risk profile</h3><p class="cap">Every PO, classified by its worst-case line status</p>${heatbar()}
@@ -1165,6 +1167,7 @@ function renderOverview(){
 /* ================= PO TRACKING ================= */
 let curPO=null,curPOStat='__ALL__',curPOcat='__ALL__',curPObuyer='__ALL__',curPOrm='__ALL__',poScope='__ALL__';
 const PO_SCOPE={
+  invoiced:{t:'Invoiced — Shipped by Actual Ship date',f:isInvoiced},
   delivered:{t:'Completed / shipped POs',f:x=>x.state==='Delivered - On Time'},
   open:{t:'Open / pending POs',f:x=>x.pendQty>0},
   overdue:{t:'Overdue POs',f:x=>x.state==='Overdue'},
@@ -1183,7 +1186,7 @@ function renderPO(po){
   else if(po&&po!=='__NONE__')curPO=po;
   if(curPO==null)curPO='__ALL__';
   $('#ttl').textContent='PO Tracking';$('#sub').textContent='Full lifecycle and line-item status for any purchase order';
-  const base0=applyDims(R,curPOcat,curPObuyer,curPOrm);
+  const base0=applyDims(poScope==='invoiced'?invoicedRows():R,curPOcat,curPObuyer,curPOrm);
   const base=(poScope!=='__ALL__'&&PO_SCOPE[poScope])?base0.filter(PO_SCOPE[poScope].f):base0;
   const poOpts=[{v:'__ALL__',t:'All POs'}].concat(poListFrom(base).map(p=>({v:p,t:p})));
   const scopeChip=(poScope!=='__ALL__'&&PO_SCOPE[poScope])?`<div class="chip warn" style="cursor:pointer" onclick="clearScope()">Showing: ${PO_SCOPE[poScope].t} · clear ✕</div>`:'';
