@@ -845,6 +845,7 @@ body.locked{overflow:hidden}
       <button data-v="ship"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M3 16v5h5"/><path d="M21 16v5h-5"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>Shipment Status</button>
       <button data-v="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2"/></svg>Reports</button>
       <button data-v="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>AI Assistant</button>
+      <button data-v="finance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></svg>Finance</button>
       <button data-v="data" data-admin-only hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z"/><path d="M4 7v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Update Data</button>
     </nav>
     <div class="railfoot" id="foot"></div>
@@ -2130,9 +2131,15 @@ window.aihSend=()=>{const el=$('#aihQ');if(!el)return;const q=el.value.trim();if
 window.aihAsk=q=>{aihMsgs.push({role:'user',html:aiEsc(q)});let res;try{res=aihAnswer(q);}catch(e){res='Sorry — I hit a snag ('+aiEsc(e.message)+').';}const msg={role:'bot'};if(typeof res==='string'){msg.html=res;}else{msg.html=res.html;msg.chart=res.chart;}aihMsgs.push(msg);if(view!=='help')go('help');else renderAIHelp();};
 window.aihMic=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast('Voice input needs Chrome or Edge.',true);return;}const rec=new SR();rec.lang='en-US';rec.interimResults=false;const b=$('#aihMic');if(b)b.classList.add('listening');toast('Listening…');rec.onresult=e=>{aihAsk(e.results[0][0].transcript);};rec.onerror=ev=>{toast('Voice error: '+(ev.error||'no audio'),true);};rec.onend=()=>{if(b)b.classList.remove('listening');};try{rec.start();}catch(e){}};
 
+function renderFinance(){
+  $('#ttl').textContent='Finance';
+  $('#sub').textContent='';
+  $('#view').innerHTML='<div class="card" style="min-height:280px;display:flex;align-items:center;justify-content:center;text-align:center"><h2 style="margin:0;color:var(--muted);letter-spacing:.12em">COMING SOON</h2></div>';
+}
+
 function go(v){if(v==='data'&&!window.PSM?.isAdmin())v='overview';view=v;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  const hideTop=(v==='reports');['.yearbar','#themeToggle','.exportwrap'].forEach(sel=>{const el=document.querySelector(sel);if(el)el.style.display=hideTop?'none':'';});
-  ({overview:renderOverview,po:renderPO,prod:renderProd,aging:renderAging,qc:renderQC,ship:renderShip,reports:renderReports,ai:renderAI,data:renderData})[v]();window.scrollTo(0,0);}
+  const hideTop=(v==='reports'||v==='finance');['.yearbar','#themeToggle','.exportwrap'].forEach(sel=>{const el=document.querySelector(sel);if(el)el.style.display=hideTop?'none':'';});
+  ({overview:renderOverview,po:renderPO,prod:renderProd,aging:renderAging,qc:renderQC,ship:renderShip,reports:renderReports,ai:renderAI,finance:renderFinance,data:renderData})[v]();window.scrollTo(0,0);}
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 window.openPO=po=>{curPO=po;curPOStat='__ALL__';go('po');};
 window.openMat=mid=>{const rec=R.find(x=>x.material===mid);if(rec){curProd='__ALL__';curMat=mid;curProdStat='__ALL__';go('prod');}};
