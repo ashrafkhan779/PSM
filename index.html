@@ -1488,9 +1488,9 @@ function renderQC(){
   const waitRecs=QC.filter(x=>x.qcStatus==='Awaiting PSM Approval');
   const kpis=`<div class="kpis" style="grid-template-columns:repeat(3,1fr)">
     ${tile('Awaiting PSM Approval',waitRecs,'hot','Awaiting PSM Approval')}
-    ${tile('QC APPROVE',approvedRecs,'ok','__APPROVED__')}
+    ${tile('QC APPROVED',approvedRecs,'ok','__APPROVED__')}
     ${tile('QC APPROVED NOT SHIPPED',approvedNotShipped,'flight','__APPROVED_NOT_SHIPPED__')}</div>`;
-  const opts=[{v:'__ALL__',t:'All QC statuses'},{v:'__APPROVED__',t:'QC APPROVE'},{v:'__APPROVED_NOT_SHIPPED__',t:'QC APPROVED NOT SHIPPED'}].concat(statuses.map(k=>({v:k,t:k})));
+  const opts=[{v:'__ALL__',t:'All QC statuses'},{v:'__APPROVED__',t:'QC APPROVED'},{v:'__APPROVED_NOT_SHIPPED__',t:'QC APPROVED NOT SHIPPED'}].concat(statuses.map(k=>({v:k,t:k})));
   const filters=`<div class="filters">${selectGroup('QC status','qcf',opts,qcFilter,'setQCf')}${clearBtn('clearQC')}</div>`;
   let L=qcFilter==='__ALL__'?QC:qcFilter==='__APPROVED__'?approvedRecs:qcFilter==='__APPROVED_NOT_SHIPPED__'?approvedNotShipped:QC.filter(x=>x.qcStatus===qcFilter);
   L=L.slice().sort((a,b)=>(+b.po)-(+a.po)||(a.line||0)-(b.line||0));
