@@ -306,6 +306,7 @@ td.mdesc{max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellips
 .exsum .exul li{font-size:13px;line-height:1.5;color:var(--slate)}
 .dark .exsum .exul li{color:var(--ink)}
 .exsum .exnote{font-size:11px;color:var(--muted);margin-top:12px;font-style:italic}
+
 </style>
 <style>
 [data-admin-only][hidden]{display:none!important}
@@ -746,6 +747,13 @@ window.PSM_CONFIG = {
 body.locked{overflow:hidden}
 @media(max-height:740px){#authGate .login-card{padding-top:28px;padding-bottom:28px}#authGate .login-header{margin-bottom:24px}#authGate .neu-icon{width:64px;height:64px;margin-bottom:16px}}
 
+/* Keep login labels above typed and autofilled values. */
+#authGate .neu-input input{box-sizing:border-box;display:block;height:72px;line-height:24px;padding:30px 20px 10px 55px;border-radius:15px;transition:background-color .2s ease,color .2s ease;}
+#authGate .neu-input label,#authGate .neu-input input:focus + label,#authGate .neu-input input:not(:placeholder-shown) + label{top:9px;left:55px;transform:none;font-size:12px;line-height:16px;color:#6c7293;}
+#authGate .password-group{padding-right:0;}
+#authGate .password-group input{padding-right:64px;}
+#authGate .neu-input input:autofill{border-radius:15px;}
+#authGate .neu-input input:-webkit-autofill{-webkit-text-fill-color:#3d4468;}
 </style>
 </head>
 <body class="locked">
@@ -1144,13 +1152,13 @@ function renderOverview(){
   $('#view').innerHTML=`
    <div class="filters" style="margin-bottom:16px">
      <div class="chip">Supplier <b>${M.supplier}</b></div><div class="chip">Plant <b>${M.plant}</b></div></div>
-   <div class="kpis k6">
+   <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
      ${kpi('Order Book Value',usdK(K.poValue),num(K.pos)+' POs · '+num(K.lines)+' lines · '+num(K.orderQ)+' units','neut')}
      ${lkpi('DISPATCHED VALUE',usdK(K.deliveredVal),uniq(K.delivered,x=>x.po)+' POs · '+num(K.delivered.length)+' lines · '+num(K.delivQ)+' units','ok','delivered')}
      ${lkpi('Open / Pending Value',usdK(K.pendValue),uniq(_open,x=>x.po)+' POs · '+num(_open.length)+' lines · '+num(K.pendQ)+' units','flight','open')}
      ${lkpi('Overdue Value',usdK(K.overdueVal),uniq(K.overdue,x=>x.po)+' POs · '+K.overdue.length+' lines · avg '+Math.round(K.avgDelay)+'d','hot','overdue')}
      ${kpi('Completion',(K.compl*100).toFixed(1)+'%',uniq(K.delivered,x=>x.po)+' POs · '+num(K.delivered.length)+' lines · '+num(K.delivQ)+' units','ok')}
-     ${lkpi('Invoiced Value',usdK(K.invoicedVal),uniq(K.invoiced,x=>x.po)+' POs · '+num(K.invoiced.length)+' lines · '+num(K.invoicedQty)+' units<br>Shipped · Actual Ship date · '+(yearFilter==='__ALL__'?'All years':yearFilter),'neut','invoiced')}</div>
+</div>
    <div class="grid g2" style="margin-bottom:14px">
      <div class="card"><h3>Purchase-order value by month raised</h3><p class="cap">PO issue date · USD committed (value shown at each point)</p>${monthTrend()}</div>
      <div class="card"><h3>Delivery risk profile</h3><p class="cap">Every PO, classified by its worst-case line status</p>${heatbar()}
@@ -1467,21 +1475,24 @@ function donutSVG(segs){
     a0=a1;});
   return `<svg viewBox="0 0 190 190" width="190" height="190" style="flex:none">${paths}</svg>`;
 }
+function isQCApproved(x){return /^(?:ac|qc)\s+approved$/i.test(String(x.qcStatus||'').trim());}
+function isApprovedNotShipped(x){return isQCApproved(x)&&String(x.shipStatus||'').toLowerCase().replace(/[^a-z]/g,'')==='shipmentreadyforpickup';}
 function renderQC(){
   $('#ttl').textContent='QC Status';$('#sub').textContent='Quality-control approvals across the purchase book';
   const QC=R.filter(x=>x.qcStatus);
   const statuses=[...new Set(QC.map(x=>x.qcStatus))].sort();
   const tile=(label,recs,cls,fv)=>{const v=sum(recs,x=>x.value),po=uniq(recs,x=>x.po),u=sum(recs,x=>x.orderQty),m=uniq(recs,x=>x.material);
     return `<div class="kpi ${cls} qlink${qcFilter===fv?' on':''}" onclick="setQCf('${fv}')" title="Filter table to ${fv==='__ALL__'?'all QC lines':fv}"><div class="bar"></div><div class="lab">${label}</div><div class="val">${usdK(v)}</div><div class="sub">${num(recs.length)} lines · ${po} POs · ${num(u)} units · ${m} mat</div></div>`;};
-  const approvedRecs=QC.filter(x=>x.qcStatus==='QC Approved');
+  const approvedRecs=QC.filter(isQCApproved);
+  const approvedNotShipped=QC.filter(isApprovedNotShipped);
   const waitRecs=QC.filter(x=>x.qcStatus==='Awaiting PSM Approval');
   const kpis=`<div class="kpis" style="grid-template-columns:repeat(3,1fr)">
-    ${tile('All QC',QC,'neut','__ALL__')}
-    ${tile('QC Approved',approvedRecs,'ok','QC Approved')}
-    ${tile('Awaiting PSM Approval',waitRecs,'hot','Awaiting PSM Approval')}</div>`;
-  const opts=[{v:'__ALL__',t:'All QC statuses'}].concat(statuses.map(k=>({v:k,t:k})));
+    ${tile('Awaiting PSM Approval',waitRecs,'hot','Awaiting PSM Approval')}
+    ${tile('AC Approved',approvedRecs,'ok','__APPROVED__')}
+    ${tile('AC Approved Not Shipped',approvedNotShipped,'flight','__APPROVED_NOT_SHIPPED__')}</div>`;
+  const opts=[{v:'__ALL__',t:'All QC statuses'},{v:'__APPROVED__',t:'AC Approved'},{v:'__APPROVED_NOT_SHIPPED__',t:'AC Approved Not Shipped'}].concat(statuses.map(k=>({v:k,t:k})));
   const filters=`<div class="filters">${selectGroup('QC status','qcf',opts,qcFilter,'setQCf')}${clearBtn('clearQC')}</div>`;
-  let L=qcFilter==='__ALL__'?QC:QC.filter(x=>x.qcStatus===qcFilter);
+  let L=qcFilter==='__ALL__'?QC:qcFilter==='__APPROVED__'?approvedRecs:qcFilter==='__APPROVED_NOT_SHIPPED__'?approvedNotShipped:QC.filter(x=>x.qcStatus===qcFilter);
   L=L.slice().sort((a,b)=>(+b.po)-(+a.po)||(a.line||0)-(b.line||0));
   const chip=s=>s==='QC Approved'?'background:var(--okbg);color:var(--ok)':'background:var(--hotbg);color:var(--hot)';
   const qcDays=x=>{if(x.qcSubmitted&&x.qcApproved){const d=Math.round((Date.parse(x.qcApproved)-Date.parse(x.qcSubmitted))/864e5);return d+' d';}if(x.qcSubmitted&&!x.qcApproved){const d=Math.round((Date.now()-Date.parse(x.qcSubmitted))/864e5);return `<span style="color:var(--hot)">${d} d ⏳</span>`;}return '—';};
@@ -1492,10 +1503,10 @@ function renderQC(){
   const coverageStatuses=['QC Approved','Awaiting PSM Approval','PO In-Process','Not Applicable'];
   const coverageColors=['#1E8A6E','#E0602B','#98A6B9','#557FC2'];
   const segs=coverageStatuses.map((label,i)=>{
-    const rows=R.filter(x=>x.qcStatus===label);
+    const rows=label==='QC Approved'?R.filter(isQCApproved):R.filter(x=>x.qcStatus===label);
     return {label,value:sum(rows,x=>x.value),color:coverageColors[i],n:rows.length,po:uniq(rows,x=>x.po)};
   });
-  const other=R.filter(x=>x.qcStatus&&!coverageStatuses.includes(x.qcStatus));
+  const other=R.filter(x=>x.qcStatus&&!isQCApproved(x)&&!coverageStatuses.includes(x.qcStatus));
   const unspecified=R.filter(x=>!x.qcStatus);
   if(other.length)segs.push({label:'Other QC statuses',value:sum(other,x=>x.value),color:'#8A75B5',n:other.length,po:uniq(other,x=>x.po)});
   if(unspecified.length)segs.push({label:'Not specified',value:sum(unspecified,x=>x.value),color:'#CBD2DC',n:unspecified.length,po:uniq(unspecified,x=>x.po)});
