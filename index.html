@@ -1486,9 +1486,8 @@ function renderQC(){
   const approvedRecs=QC.filter(isQCApproved);
   const approvedNotShipped=QC.filter(isApprovedNotShipped);
   const waitRecs=QC.filter(x=>x.qcStatus==='Awaiting PSM Approval');
-  const kpis=`<div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+  const kpis=`<div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
     ${tile('Awaiting PSM Approval',waitRecs,'hot','Awaiting PSM Approval')}
-    ${tile('QC APPROVED',approvedRecs,'ok','QC Approved')}
     ${tile('QC APPROVED NOT SHIPPED',approvedNotShipped,'flight','__APPROVED_NOT_SHIPPED__')}</div>`;
   const opts=[{v:'__ALL__',t:'All QC statuses'},{v:'__APPROVED_NOT_SHIPPED__',t:'QC approved not shipped'}].concat(statuses.map(k=>({v:k,t:k})));
   const filters=`<div class="filters">${selectGroup('QC status','qcf',opts,qcFilter,'setQCf')}${clearBtn('clearQC')}</div>`;
