@@ -971,6 +971,12 @@ function buildDataset(rows){
       freightPO:String(pick(row,'Freight PO')??'').trim(),
       awb:String(pick(row,'AWB/BL No','AWB/BL','AWB')??'').trim(),
       eta:iso(toDate(pick(row,'ETA'))),
+      invoiceNo:String(pick(row,'Invoice No')??'').trim(),
+      invoiceDate:iso(toDate(pick(row,'Invoice Date'))),
+      invoiceValue:Number(pick(row,'Invoice Value'))||0,
+      freightCharges:Number(pick(row,'Freight Charges'))||0,
+      totalInvoiceValue:Number(pick(row,'Total Invoice Value'))||0,
+      invoiceStatus:String(pick(row,'Status (Paid/Unpaid)')??'').trim(),
       state,stage,
       poDate:iso(poDate),reqDate:iso(toDate(pick(row,'PSM Required Date','PSM Delivery Date'))),
       expShip:iso(toDate(pick(row,'ET Promised Date','ET Expected Ship Date'))),
@@ -2143,8 +2149,45 @@ window.aihMic=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecogni
 
 function renderFinance(){
   $('#ttl').textContent='Finance';
-  $('#sub').textContent='';
-  $('#view').innerHTML='<div class="card" style="min-height:280px;display:flex;align-items:center;justify-content:center;text-align:center"><h2 style="margin:0;color:var(--muted);letter-spacing:.12em">COMING SOON</h2></div>';
+  $('#sub').textContent='Invoice overview · 45-day credit terms · USD';
+  const entries=ALLR.filter(r=>r.invoiceNo && r.invoiceDate && Number(r.totalInvoiceValue)>0);
+  // Invoice identifiers may repeat on PO lines; count each invoice once, not each line.
+  const invoices=new Map();
+  for(const r of entries){
+    const id=r.invoiceNo.trim().toLowerCase();
+    if(!invoices.has(id))invoices.set(id,r);
+    else if(invoices.get(id).totalInvoiceValue!==r.totalInvoiceValue || invoices.get(id).invoiceStatus!==r.invoiceStatus){
+      console.warn('Conflicting duplicate invoice',r.invoiceNo);
+    }
+  }
+  const today=new Date();today.setHours(0,0,0,0);
+  const data=[...invoices.values()].map(r=>{
+    const d=new Date(r.invoiceDate+'T00:00:00');
+    const age=Math.max(0,Math.floor((today-d)/86400000));
+    return {...r,age,overdue:age>45,daysOverdue:Math.max(0,age-45),unpaid:r.invoiceStatus.trim().toLowerCase()==='unpaid'};
+  });
+  const total=sum(data,r=>r.totalInvoiceValue),unpaid=data.filter(r=>r.unpaid),outstanding=sum(unpaid,r=>r.totalInvoiceValue);
+  const overdue=unpaid.filter(r=>r.overdue),overdueValue=sum(overdue,r=>r.totalInvoiceValue);
+  const buckets=[['0–45 days',0,45],['46–90 days',46,90],['91–135 days',91,135],['136+ days',136,Infinity]];
+  const money=n=>'$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const kpi=(label,value,sub)=>`<div class="kpi"><div class="lab">${label}</div><div class="val" style="font-size:20px">${money(value)}</div><div class="sub">${sub}</div></div>`;
+  const ages=buckets.map(([name,lo,hi])=>{const group=unpaid.filter(r=>r.age>=lo&&r.age<=hi);return {name,count:group.length,value:sum(group,r=>r.totalInvoiceValue)};});
+  $('#view').innerHTML=`<div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
+    ${kpi('Total invoice value',total,data.length+' unique invoices')}
+    ${kpi('Unpaid invoice value',outstanding,unpaid.length+' unpaid invoices')}
+    ${kpi('Overdue unpaid value',overdueValue,overdue.length+' invoices past 45 days')}
+    ${kpi('Within credit period',outstanding-overdueValue,'Unpaid · 0–45 days')}
+  </div>
+  <div class="card" style="margin-bottom:16px"><h3>Unpaid invoice aging</h3><p class="cap">Age from invoice date · totals include unpaid invoices only</p>
+  <div class="tablewrap fit"><table><thead><tr><th>Age bucket</th><th class="right">Invoices</th><th class="right">Unpaid value (USD)</th></tr></thead><tbody>
+  ${ages.map(x=>`<tr><td>${x.name}</td><td class="right mono">${x.count}</td><td class="right mono">${money(x.value)}</td></tr>`).join('')}
+  <tr><td><b>Total unpaid</b></td><td class="right"><b>${unpaid.length}</b></td><td class="right"><b>${money(outstanding)}</b></td></tr></tbody></table></div></div>
+  <div class="card"><h3>Unpaid invoices</h3><p class="cap">Red: more than 45 days old · Green: within 45 days · Oldest first</p>
+  <div class="tablewrap"><table><thead><tr><th>Invoice #</th><th>Invoice date</th><th class="right">Invoice value (USD)</th><th class="right">Age (days)</th><th class="right">Days overdue</th><th>Status</th></tr></thead><tbody>
+  ${unpaid.sort((a,b)=>b.age-a.age).map(r=>`<tr><td class="mono">${e(r.invoiceNo)}</td><td>${fmtd(r.invoiceDate)}</td><td class="right mono">${money(r.totalInvoiceValue)}</td><td class="right mono">${r.age}</td><td class="right mono">${r.daysOverdue}</td><td><span class="tag ${r.overdue?'t-hot':'t-ok'}">${r.overdue?'Overdue':'Within terms'}</span></td></tr>`).join('')||'<tr><td colspan="6" class="center">No unpaid invoices with valid dates and values</td></tr>'}
+  </tbody></table></div></div>
+  <p class="note">Invoices are deduplicated by invoice number. Missing invoice numbers, dates or values are excluded. Figures use the uploaded source currency; confirm all invoice amounts are USD before interpreting the totals as USD.</p>`;
 }
 
 function go(v){if(v==='data'&&!window.PSM?.isAdmin())v='overview';view=v;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
