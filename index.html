@@ -1004,7 +1004,7 @@ const $=s=>document.querySelector(s);
 const usd=n=>'$'+Math.round(n).toLocaleString('en-US');
 const usdK=n=>n>=1e6?'$'+(n/1e6).toFixed(2)+'M':n>=1e3?'$'+(n/1e3).toFixed(0)+'K':'$'+Math.round(n);
 const num=n=>Math.round(n).toLocaleString('en-US');
-const fmtd=s=>{if(!s)return '—';const d=new Date(s);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'});};
+const fmtd=s=>{if(!s)return '—';const d=new Date(s);return Number.isNaN(d.getTime())?'—':d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit',timeZone:'UTC'});};
 const sum=(a,f)=>a.reduce((s,x)=>s+(f(x)||0),0);const uniq=(a,f)=>new Set(a.map(f)).size;
 const STATE={'Delivered - On Time':'t-ok','Pending - On Track':'t-flight','Overdue':'t-hot','Pending - Unclassified':'t-flight'};
 const STATES=['Delivered - On Time','Pending - On Track','Overdue','Pending - Unclassified'];
@@ -2291,7 +2291,7 @@ const eBtn=$('#exportBtn'),eMenu=$('#exportMenu');
 eBtn.onclick=e=>{e.stopPropagation();eMenu.classList.toggle('show');};
 document.addEventListener('click',e=>{if(!e.target.closest('.exportwrap'))eMenu.classList.remove('show');});
 function closeMenu(){eMenu.classList.remove('show');}
-const fmtDMY=s=>s?new Date(s).toLocaleDateString('en-GB'):'';
+const fmtDMY=s=>s?new Date(s).toLocaleDateString('en-GB',{timeZone:'UTC'}):'';
 const AGELBL={b15:'Due <=15 days',b30:'16-30 days',b45:'31-45 days',b60:'46-60 days',b90:'61-90 days',b90p:'90 days+',overdue:'Overdue',undated:'No ship date'};
 function currentScope(){
   let recs,title,sub;
