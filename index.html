@@ -891,7 +891,7 @@ body.locked{overflow:hidden}
 function pick(row,...names){for(const n of names){for(const k in row){if(String(k).trim().toLowerCase()===n.trim().toLowerCase())return row[k];}}return null;}
 function toDate(v){
   if(v==null||v==='')return null;
-  if(v instanceof Date)return isNaN(v)?null:new Date(Date.UTC(v.getFullYear(),v.getMonth(),v.getDate()));
+  if(v instanceof Date)return isNaN(v)?null:new Date(Date.UTC(v.getUTCFullYear(),v.getUTCMonth(),v.getUTCDate())); // XLSX cellDates uses UTC midnight; local getters can subtract one day
   if(typeof v==='number'){const d=new Date(Math.round((v-25569)*86400*1000));return isNaN(d)?null:new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));}
   const str=String(v).trim();
   let m=str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T].*)?$/);
@@ -1004,7 +1004,7 @@ const $=s=>document.querySelector(s);
 const usd=n=>'$'+Math.round(n).toLocaleString('en-US');
 const usdK=n=>n>=1e6?'$'+(n/1e6).toFixed(2)+'M':n>=1e3?'$'+(n/1e3).toFixed(0)+'K':'$'+Math.round(n);
 const num=n=>Math.round(n).toLocaleString('en-US');
-const fmtd=s=>{if(!s)return '—';const d=new Date(s);return Number.isNaN(d.getTime())?'—':d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit',timeZone:'UTC'});};
+const fmtd=s=>{if(!s)return '—';const m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);if(m){const d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));return Number.isNaN(d.getTime())?'—':d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit',timeZone:'UTC'});}const d=new Date(s);return Number.isNaN(d.getTime())?'—':d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit',timeZone:'UTC'});};
 const sum=(a,f)=>a.reduce((s,x)=>s+(f(x)||0),0);const uniq=(a,f)=>new Set(a.map(f)).size;
 const STATE={'Delivered - On Time':'t-ok','Pending - On Track':'t-flight','Overdue':'t-hot','Pending - Unclassified':'t-flight'};
 const STATES=['Delivered - On Time','Pending - On Track','Overdue','Pending - Unclassified'];
@@ -2291,7 +2291,7 @@ const eBtn=$('#exportBtn'),eMenu=$('#exportMenu');
 eBtn.onclick=e=>{e.stopPropagation();eMenu.classList.toggle('show');};
 document.addEventListener('click',e=>{if(!e.target.closest('.exportwrap'))eMenu.classList.remove('show');});
 function closeMenu(){eMenu.classList.remove('show');}
-const fmtDMY=s=>s?new Date(s).toLocaleDateString('en-GB',{timeZone:'UTC'}):'';
+const fmtDMY=s=>s?fmtd(s):'';
 const AGELBL={b15:'Due <=15 days',b30:'16-30 days',b45:'31-45 days',b60:'46-60 days',b90:'61-90 days',b90p:'90 days+',overdue:'Overdue',undated:'No ship date'};
 function currentScope(){
   let recs,title,sub;
