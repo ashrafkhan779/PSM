@@ -2241,13 +2241,31 @@ $('#file').onchange=async e=>{
       const required=['PSM PO#','Line Item#','Material#','Products','Order Quantity','Total Value','Current Status','Shipment Status','ETA','Invoice No','Invoice Date','Invoice Value','Freight Charges','Total Invoice Value','Status (Paid/Unpaid)'];
       const missing=required.filter(h=>!has(h));
       if(missing.length)throw new Error('Import stopped: missing required columns: '+missing.join(', ')+'. No saved data was changed.');
-      const sourcePO=rows.filter(r=>String(pick(r,'PSM PO#')??'').trim());
-      if(sourcePO.length!==rows.length)throw new Error('Import stopped: '+(rows.length-sourcePO.length)+' source rows have no PSM PO#. Fix these rows before replacing the database.');
-      ds=buildDataset(rows);
-      if(ds.records.length!==sourcePO.length)throw new Error('Import incomplete: source and parsed row counts differ.');
+      // Excel sheets often contain a footer/total row without a PO. Such rows
+      // are not purchase-order records and must not block a valid upload.
+      // A row with real line/material/invoice information but no PO is still
+      // rejected, so financial or shipment records cannot disappear silently.
+      const hasText=v=>v!=null&&String(v).trim()!=='';
+      const ignored=[];const invalid=[];const validRows=[];
+      rows.forEach((r,i)=>{
+        if(hasText(pick(r,'PSM PO#'))){validRows.push(r);return;}
+        const hasRecordIdentity=['Line Item#','Material#','Invoice No','Invoice Date','Status (Paid/Unpaid)','ETA','AWB/BL No']
+          .some(h=>hasText(pick(r,h)));
+        const hasInvoiceAmount=['Invoice Value','Freight Charges','Total Invoice Value']
+          .some(h=>{const v=pick(r,h);return hasText(v)&&Number(v)!==0;});
+        if(hasRecordIdentity||hasInvoiceAmount)invalid.push(i+2);
+        else ignored.push(i+2);
+      });
+      if(invalid.length)throw new Error('Import stopped: missing PSM PO# on data row(s) '+invalid.slice(0,12).join(', ')+(invalid.length>12?'…':'')+'. Fill the PO number in Excel; no saved data was changed.');
+      if(!validRows.length)throw new Error('No valid PO rows found. No saved data was changed.');
+      ds=buildDataset(validRows);
+      if(ds.records.length!==validRows.length)throw new Error('Import incomplete: source and parsed row counts differ.');
       const financeCount=ds.records.filter(r=>r.invoiceStatus.toLowerCase()==='unpaid').length;
-      const sourceFinance=rows.filter(r=>String(pick(r,'Status (Paid/Unpaid)')??'').trim().toLowerCase()==='unpaid').length;
+      const sourceFinance=validRows.filter(r=>String(pick(r,'Status (Paid/Unpaid)')??'').trim().toLowerCase()==='unpaid').length;
       if(financeCount!==sourceFinance)throw new Error('Import stopped: unpaid finance rows did not match the source.');
+      if(ignored.length)toast('Ignored '+ignored.length+' non-PO summary/blank row(s): Excel row '+ignored.slice(0,8).join(', ')+(ignored.length>8?'…':''));
+      ds.meta.importIgnoredRows=ignored.length;
+      ds.meta.importIgnoredExcelRows=ignored.slice(0,100);
       ds.meta.importFile=f.name;
       ds.meta.importedAt=new Date().toISOString();
       ds.meta.importRows=ds.records.length;
