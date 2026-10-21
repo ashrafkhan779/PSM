@@ -888,7 +888,7 @@ body.locked{overflow:hidden}
 <div class="toast" id="toast"></div>
 
 <script>/* Shared cleaning engine — new "Database" schema, backward-compatible with the old one. */
-function pick(row,...names){for(const n of names){for(const k in row){if(String(k).trim().toLowerCase()===n.trim().toLowerCase())return row[k];}}return null;}
+function pick(row,...names){const norm=v=>String(v).normalize('NFKC').replace(/\s+/g,' ').trim().toLowerCase();for(const n of names){for(const k in row){if(norm(k)===norm(n))return row[k];}}return null;}
 function toDate(v){
   if(v==null||v==='')return null;
   if(v instanceof Date)return isNaN(v)?null:new Date(Date.UTC(v.getUTCFullYear(),v.getUTCMonth(),v.getUTCDate())); // XLSX cellDates uses UTC midnight; local getters can subtract one day
@@ -980,8 +980,8 @@ function buildDataset(rows){
       invoiceDate:iso(toDate(pick(row,'Invoice Date'))),
       invoiceValue:Number(pick(row,'Invoice Value'))||0,
       freightCharges:Number(pick(row,'Freight Charges'))||0,
-      totalInvoiceValue:Number(pick(row,'Total Invoice Value'))||0,
-      invoiceStatus:String(pick(row,'Status (Paid/Unpaid)')??'').trim(),
+      totalInvoiceValue:(()=>{const raw=pick(row,'Total Invoice Value');return raw==null||String(raw).trim()===''?((Number(pick(row,'Invoice Value'))||0)+(Number(pick(row,'Freight Charges'))||0)):(Number(raw)||0);})(),
+      invoiceStatus:String(pick(row,'Status (Paid/Unpaid)','Invoice Status','Payment Status')??'').trim(),
       state,stage,
       poDate:iso(poDate),reqDate:iso(toDate(pick(row,'PSM Required Date','PSM Delivery Date'))),
       expShip:iso(toDate(pick(row,'ET Promised Date','ET Expected Ship Date'))),
@@ -2233,8 +2233,27 @@ $('#file').onchange=async e=>{
       const ws=wb.Sheets[wb.SheetNames.includes('Database')?'Database':wb.SheetNames[0]];
       const rows=XLSX.utils.sheet_to_json(ws,{defval:null});
       if(!rows.length)throw new Error('The Database sheet is empty.');
-      if(!Object.keys(rows[0]).some(k=>k.trim().toLowerCase()==='eta'))throw new Error('The Database sheet has no ETA column. Check the source worksheet/header.');
+      // Validate source columns before replacing any saved data. Never silently import
+      // a partial workbook that drops finance or shipment fields.
+      const headers=Object.keys(rows[0]);
+      const normal=h=>String(h).normalize('NFKC').replace(/\s+/g,' ').trim().toLowerCase();
+      const has=h=>headers.some(k=>normal(k)===normal(h));
+      const required=['PSM PO#','Line Item#','Material#','Products','Order Quantity','Total Value','Current Status','Shipment Status','ETA','Invoice No','Invoice Date','Invoice Value','Freight Charges','Total Invoice Value','Status (Paid/Unpaid)'];
+      const missing=required.filter(h=>!has(h));
+      if(missing.length)throw new Error('Import stopped: missing required columns: '+missing.join(', ')+'. No saved data was changed.');
+      const sourcePO=rows.filter(r=>String(pick(r,'PSM PO#')??'').trim());
+      if(sourcePO.length!==rows.length)throw new Error('Import stopped: '+(rows.length-sourcePO.length)+' source rows have no PSM PO#. Fix these rows before replacing the database.');
       ds=buildDataset(rows);
+      if(ds.records.length!==sourcePO.length)throw new Error('Import incomplete: source and parsed row counts differ.');
+      const financeCount=ds.records.filter(r=>r.invoiceStatus.toLowerCase()==='unpaid').length;
+      const sourceFinance=rows.filter(r=>String(pick(r,'Status (Paid/Unpaid)')??'').trim().toLowerCase()==='unpaid').length;
+      if(financeCount!==sourceFinance)throw new Error('Import stopped: unpaid finance rows did not match the source.');
+      ds.meta.importFile=f.name;
+      ds.meta.importedAt=new Date().toISOString();
+      ds.meta.importRows=ds.records.length;
+      ds.meta.importUnpaid=financeCount;
+      ds.meta.importETA=ds.records.filter(r=>r.eta).length;
+      ds.meta.importInvoiceTotal=+ds.records.filter(r=>r.invoiceStatus.toLowerCase()==='unpaid').reduce((t,r)=>t+r.totalInvoiceValue,0).toFixed(2);
       if(!ds.records.length)throw new Error('No PO records were imported. Check the PSM PO# column.');
     }
     window.PSM.preview(ds,f.name);
@@ -2268,6 +2287,9 @@ function renderData(){
   const edit=window.PSM?.canEdit(), pending=window.PSM?.pending();
   $('#view').innerHTML=`<div class="card"><h3>Shared database</h3>
     <p>${ALLR.length} lines · ${pending?'Unsaved import preview':'Saved Supabase data'} · Source date: ${aiEsc(M.generated||'Not supplied')}</p>
+    <div class="note"><b>Import audit</b> · File: ${aiEsc(M.importFile||'Legacy data (upload a fresh Excel file)')} · Imported: ${aiEsc(M.importedAt||'Not recorded')}<br>
+    Rows: ${ALLR.length} · Unpaid lines: ${ALLR.filter(x=>String(x.invoiceStatus).toLowerCase()==='unpaid').length} · Total receivable: ${usd(sum(ALLR.filter(x=>String(x.invoiceStatus).toLowerCase()==='unpaid'),x=>x.totalInvoiceValue))} · ETA populated: ${ALLR.filter(x=>x.eta).length}<br>
+    ${pending?'<b>PREVIEW ONLY — click Save to Supabase to publish to everyone.</b>':'<b>SAVED DATA — values currently loaded from Supabase.</b>'}</div>
     ${PSM.error()?`<div role="alert" style="white-space:pre-wrap;background:#fff0ed;color:#83291b;padding:16px;border-radius:8px;margin:12px 0"><b>Save / refresh details</b>\n${aiEsc(PSM.error())}</div>`:''}
     ${PSM.notice()?`<p role="status">${aiEsc(PSM.notice())}</p>`:''}
     ${PSM.newerVersion()?'<p style="color:#aa5a00">Another admin saved a newer version. Your unsaved preview is protected. Download a backup before refreshing and reconciling your upload.</p>':''}
@@ -2506,7 +2528,16 @@ window.exportExcel=exportExcel;window.exportPDF=exportPDF;
         if(ticket!==epoch)return;
         if(error)throw error;
         if(!data||!Number.isFinite(Number(data.revision)))throw new Error('Unexpected save response. Refresh database to verify the result.');
-        revision=data.revision;saved=payload;draft=null;editVersion++;remoteRevision=null;notice='Saved successfully. Viewers and other admins update automatically. You can now click Refresh database to reload the saved copy.';syncState='Auto updates on';display(saved);toast('Saved. Automatic updates are enabled for all signed-in users.');
+        // Verify the database round-trip before marking the upload as published.
+        const {data:verified,error:verifyError}=await client.rpc('psm_get_book');
+        if(ticket!==epoch)return;
+        if(verifyError)throw new Error('Save returned success, but verification failed: '+verifyError.message+'. Refresh database before trying another save.');
+        if(!verified||Number(verified.revision)!==Number(data.revision))throw new Error('Saved revision could not be verified. Refresh database before another upload.');
+        const actual=verified.records||[];
+        if(actual.length!==payload.records.length)throw new Error('Saved row count differs from the upload. Contact your administrator.');
+        const keys=['po','line','material','value','eta','shipStatus','invoiceNo','invoiceDate','invoiceValue','freightCharges','totalInvoiceValue','invoiceStatus'];
+        for(let i=0;i<actual.length;i++)for(const k of keys)if(JSON.stringify(actual[i][k]??null)!==JSON.stringify(payload.records[i][k]??null))throw new Error('Saved data mismatch at row '+(i+1)+', field '+k+'. Refresh database and investigate.');
+        revision=verified.revision;saved=validate({meta:verified.meta,records:actual});draft=null;editVersion++;remoteRevision=null;notice='Save verified in Supabase: '+actual.length+' rows, including finance and ETA fields. All dashboard tabs now use the confirmed saved dataset.';syncState='Auto updates on';display(saved);toast('Save verified. All tabs use the latest Supabase data.');
       }catch(e){lastError=errorText(e);notice='Save was not confirmed. Your preview is retained.';toast('Save not confirmed. See the details in Update Data.',true);}
       finally{busy=false;if(ticket===epoch){status();if(view==='data')renderData();}}
     },
