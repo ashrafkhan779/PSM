@@ -293,6 +293,9 @@ td.mdesc{max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellips
 .smatrix .smcell{min-height:34px;border-radius:5px;display:flex;align-items:center;justify-content:center;padding:3px 2px;font-family:var(--mono);font-size:clamp(9px,0.78vw,12px);font-weight:600;cursor:pointer;transition:transform .12s,box-shadow .12s;min-width:0;overflow-wrap:anywhere;text-align:center}
 .smatrix .smcell:hover{transform:translateY(-1px);box-shadow:0 3px 11px rgba(21,30,43,.14)}
 .smatrix .smcell.sel{outline:2px solid var(--ember);outline-offset:1px}
+.smatrix .smtotal{font-weight:800;border-top:1px solid var(--line);font-size:clamp(8px,0.72vw,11px)}
+.smatrix .smcol{font-size:clamp(8px,0.75vw,11px)}
+.smatrix .smcell{font-size:clamp(8px,0.68vw,11px);padding:3px 1px}
 .dark .smatrix .smrowlab{color:var(--ink)}
 .donutwrap{display:flex;align-items:center;gap:26px;flex-wrap:wrap;margin-top:8px}
 .dlegend{display:flex;flex-direction:column;gap:12px;flex:1;min-width:220px}
@@ -1302,25 +1305,60 @@ function poTimeline(all){
 
 /* ================= PRODUCTS ================= */
 let curProd='__ALL__',curMat='__ALL__',curProdStat='__ALL__',curPrCat='__ALL__',curPrBuyer='__ALL__',curPrRm='__ALL__',curCellStage=null,curCellProd=null;
+function psmMatrixStage(x){
+
+    const raw=String(x.remarks||'').trim().toLowerCase().replace(/[_-]+/g,' ').replace(/\s+/g,' ');
+    if(!raw||/^(yet to start|not started|not yet started|to be started|pending start)$/.test(raw))return 'Yet to Start';
+    if(/(completed|complete|finished|ready for pickup|ready for pick up|ready to ship|final inspection|awaiting qc|qc approval|post machining)/.test(raw)){
+      if(/post machining/.test(raw))return 'Machining';
+      return 'Production Completed';
+    }
+    if(/shot\s*peen/.test(raw))return 'Shot Peening';
+    if(/passivat/.test(raw))return 'Passivation';
+    if(/bra[sz]ing/.test(raw))return 'Brazing';
+    if(/coat/.test(raw))return 'Coating';
+    if(/machin/.test(raw))return 'Machining';
+    if(/(forging|forge)/.test(raw))return 'Machining';
+    return 'Other Stages';
+}
+function psmMatrixProduct(x){
+  const productOrder=['Forging','Blade','Shroud','IGV','Combustion','Carrier','Spacer','Tooling','NRE','Freight Charges'];
+  const raw=String(x.product||'').trim();
+  return productOrder.find(p=>p.toLowerCase()===raw.toLowerCase())||'Other Products';
+}
 function stageProductMatrix(recs){
-  const remOrder=['Yet to Start','Forging','Forging completed','Machining','Post Machining','Final Inspection','Awaiting QC approval','Ready for pickup.','Ready for pickup','Completed'];
-  const prods=[...new Set(recs.map(x=>x.product))].filter(Boolean).sort();
-  const remsPresent=[...new Set(recs.map(x=>(x.remarks&&x.remarks.trim())||'—'))];
-  if(!prods.length||!remsPresent.length)return '<div class="empty">No data for the matrix.</div>';
-  const rows=remOrder.filter(r=>remsPresent.some(rp=>rp.toLowerCase()===r.toLowerCase())).concat(remsPresent.filter(rp=>!remOrder.some(r=>r.toLowerCase()===rp.toLowerCase())));
-  const val={};let maxCell=0;
-  recs.forEach(x=>{const r=(x.remarks&&x.remarks.trim())||'—';const k=r+'|||'+x.product;val[k]=(val[k]||0)+(Number(x.value)||0);});
-  Object.values(val).forEach(v=>{if(v>maxCell)maxCell=v;});
+  // Explicit business order; group alternate Excel stage names without losing values.
+  const stageOrder=['Yet to Start','Machining','Coating','Brazing','Shot Peening','Passivation','Production Completed'];
+  const productOrder=['Forging','Blade','Shroud','IGV','Combustion','Carrier','Spacer','Tooling','NRE','Freight Charges'];
+  const values=new Map();let maxCell=0;
+  recs.forEach(x=>{
+    const r=psmMatrixStage(x),p=psmMatrixProduct(x),key=r+'|||'+p;
+    values.set(key,(values.get(key)||0)+(Number(x.value)||0));
+  });
+  const rows=stageOrder.concat([...values.keys()].some(k=>k.startsWith('Other Stages|||'))?['Other Stages']:[]);
+  const prods=productOrder.concat([...values.keys()].some(k=>k.endsWith('|||Other Products'))?['Other Products']:[]);
+  if(!recs.length)return '<div class="empty">No data for the matrix.</div>';
+  values.forEach(v=>{if(v>maxCell)maxCell=v;});
   const dark=document.documentElement.classList.contains('dark');
   const lo=dark?[24,33,46]:[233,238,244],hi=dark?[92,147,212]:[39,72,103];
-  const heat=r=>{const t=Math.sqrt(Math.max(0,Math.min(1,r)));return `rgb(${Math.round(lo[0]+(hi[0]-lo[0])*t)},${Math.round(lo[1]+(hi[1]-lo[1])*t)},${Math.round(lo[2]+(hi[2]-lo[2])*t)})`;};
+  const heat=v=>{const t=Math.sqrt(Math.max(0,Math.min(1,maxCell?v/maxCell:0)));return `rgb(${Math.round(lo[0]+(hi[0]-lo[0])*t)},${Math.round(lo[1]+(hi[1]-lo[1])*t)},${Math.round(lo[2]+(hi[2]-lo[2])*t)})`;};
   const emptyBg=dark?'rgba(255,255,255,.03)':'#F6F8FB';
-  let h=`<div class="smscroll"><div class="smatrix" style="grid-template-columns:minmax(105px,1.35fr) repeat(${prods.length},minmax(0,1fr))"><div></div>`;
-  prods.forEach(p=>{h+=`<div class="smcol">${p}</div>`;});
-  rows.forEach(r=>{h+=`<div class="smrowlab">${r}</div>`;
-    prods.forEach(p=>{const v=val[r+'|||'+p]||0;const ratio=maxCell?v/maxCell:0;const sel=(curCellStage===r&&curCellProd===p);const light=v>0&&Math.sqrt(ratio)>0.55;
-      h+=`<div class="smcell${sel?' sel':''}" style="background:${v>0?heat(ratio):emptyBg};color:${light?'#fff':(v>0?'var(--ink)':'transparent')}" onclick="matrixFilter('${r.replace(/'/g,"\\'")}','${p.replace(/'/g,"\\'")}')" title="${r} × ${p}: ${usd(v)}">${v>0?(v<1000?usd(v):usdK(v)):''}</div>`;});
+  const fmt=v=>v?(v<1000?usd(v):usdK(v)):'—';
+  const cell=(v,label,clickable=false,stage='',prod='')=>{
+    const ratio=maxCell?v/maxCell:0,light=v>0&&Math.sqrt(ratio)>0.55;
+    const click=clickable?` onclick="matrixFilter('${stage.replace(/'/g,"\\'")}','${prod.replace(/'/g,"\\'")}')"`:'';
+    return `<div class="smcell${clickable?'':' smtotal'}" style="background:${v>0?heat(v):emptyBg};color:${light?'#fff':'var(--ink)'};${clickable?'':'font-weight:800;cursor:default'}"${click} title="${label}: ${usd(v)}">${fmt(v)}</div>`;
+  };
+  let h=`<div class="smscroll"><div class="smatrix" style="grid-template-columns:minmax(102px,1.5fr) repeat(${prods.length+1},minmax(0,1fr))"><div></div>`;
+  prods.forEach(p=>{h+=`<div class="smcol">${p}</div>`;});h+='<div class="smcol smtotal">Total</div>';
+  rows.forEach(r=>{
+    h+=`<div class="smrowlab">${r}</div>`;let rowTotal=0;
+    prods.forEach(p=>{const v=values.get(r+'|||'+p)||0;rowTotal+=v;h+=cell(v,r+' × '+p,true,r,p);});
+    h+=cell(rowTotal,r+' total');
   });
+  h+='<div class="smrowlab smtotal">Total</div>';
+  prods.forEach(p=>{let total=0;rows.forEach(r=>{total+=values.get(r+'|||'+p)||0;});h+=cell(total,p+' total');});
+  h+=cell(recs.reduce((s,x)=>s+(Number(x.value)||0),0),'Grand total');
   return h+'</div></div>';
 }
 function matsFor(prod){const pool=prod==='__ALL__'?R:R.filter(x=>x.product===prod);
@@ -1345,7 +1383,7 @@ function renderProd(sel){
   L=applyDims(L,curPrCat,curPrBuyer,curPrRm);
   const matrixCard=`<div class="card" style="margin-top:14px"><h3>Stage × product matrix</h3><p class="cap">Total order value by production stage and product, including completed NRE and Freight Charges. Darker cells represent higher value. Click a cell to filter.</p>${stageProductMatrix(L)}<div class="note">Values include completed and shipped lines. Use the Pending value KPI above for outstanding commitments.</div></div>`;
   const cellChip=(curCellStage&&curCellProd)?`<div class="filters" style="margin-top:-2px"><div class="chip warn" style="cursor:pointer" onclick="clearCell()">Showing: ${curCellStage} × ${curCellProd} · clear ✕</div></div>`:'';
-  if(curCellStage&&curCellProd)L=L.filter(x=>((x.remarks&&x.remarks.trim())||'—')===curCellStage&&x.product===curCellProd);
+  if(curCellStage&&curCellProd)L=L.filter(x=>psmMatrixStage(x)===curCellStage&&psmMatrixProduct(x)===curCellProd);
   const oq=sum(L,x=>x.orderQty),dq=sum(L,x=>x.delivQty),pq=sum(L,x=>x.pendQty),val=sum(L,x=>x.value);
   const ovL=L.filter(x=>x.state==='Overdue');const ovUnits=sum(ovL,x=>x.pendQty),ovPOs=uniq(ovL,x=>x.po);
   const kpis=`<div class="kpis" style="margin-top:14px">
