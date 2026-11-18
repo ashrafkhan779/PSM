@@ -1309,6 +1309,7 @@ function psmMatrixStage(x){
 
     const raw=String(x.remarks||'').trim().toLowerCase().replace(/[_-]+/g,' ').replace(/\s+/g,' ');
     if(!raw||/^(yet to start|not started|not yet started|to be started|pending start)$/.test(raw))return 'Yet to Start';
+    if(/\bmpi\b/.test(raw))return 'MPI';
     if(/(completed|complete|finished|ready for pickup|ready for pick up|ready to ship|final inspection|awaiting qc|qc approval|post machining)/.test(raw)){
       if(/post machining/.test(raw))return 'Machining';
       return 'Production Completed';
@@ -1328,7 +1329,7 @@ function psmMatrixProduct(x){
 }
 function stageProductMatrix(recs){
   // Explicit business order; group alternate Excel stage names without losing values.
-  const stageOrder=['Yet to Start','Machining','Coating','Brazing','Shot Peening','Passivation','Production Completed'];
+  const stageOrder=['Yet to Start','Machining','Coating','Brazing','MPI','Shot Peening','Passivation','Production Completed'];
   const productOrder=['Forging','Blade','Shroud','IGV','Combustion','Carrier','Spacer','Tooling','NRE','Freight Charges'];
   const values=new Map();let maxCell=0;
   recs.forEach(x=>{
